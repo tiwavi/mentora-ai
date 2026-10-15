@@ -12,13 +12,18 @@ import pandas as pd
 import numpy as np
 from flask import Flask, render_template, request, jsonify
 
-app = Flask(__name__, template_folder="web/templates", static_folder="web/static")
+# Correctly resolve absolute paths for templates and static folders
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+TEMPLATE_DIR = os.path.join(BASE_DIR, "web", "templates")
+STATIC_DIR = os.path.join(BASE_DIR, "web", "static")
+
+app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)
 
 # Global variables to cache data and metrics
-DATA_PATH = "cleaned_ou_data.csv"
-METRICS_PATH = "data/processed/model_metrics.json"
-CONCEPT_MAP_PATH = "data/content/concept_map.json"
-QUESTION_BANK_PATH = "data/content/question_bank.json"
+DATA_PATH = os.path.join(BASE_DIR, "cleaned_ou_data.csv")
+METRICS_PATH = os.path.join(BASE_DIR, "data", "processed", "model_metrics.json")
+CONCEPT_MAP_PATH = os.path.join(BASE_DIR, "data", "content", "concept_map.json")
+QUESTION_BANK_PATH = os.path.join(BASE_DIR, "data", "content", "question_bank.json")
 
 def load_app_data():
     """Loads processed data, metrics, and JSON content schemas safely."""
@@ -97,7 +102,6 @@ def api_simulate_counterfactual():
     sim_clicks = req.get("sim_vle_clicks", 500)
     sim_score = req.get("sim_quiz_score", 70.0)
     
-    # Heuristic counterfactual calculation for demonstration
     base_risk = 0.82
     risk_reduction = (sim_clicks / 2000.0) * 0.3 + (sim_score / 100.0) * 0.4
     simulated_risk = max(0.05, round(base_risk - risk_reduction, 2))
