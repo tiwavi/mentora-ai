@@ -1,0 +1,49 @@
+﻿{% extends "base.html" %}
+{% block title %}Educator Dashboard — Mentora AI{% endblock %}
+{% block content %}
+<div class="dashboard-container">
+    <h2>Educator Cohort Risk & Model Benchmark</h2>
+    <p class="subtitle">Monitoring early academic risk across OULAD student profiles (Cutoff T = 60 Days).</p>
+    
+    <div class="metrics-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-top: 1.5rem;">
+        <div class="card" style="background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid #E2E8F0;">
+            <h3>Total Evaluated Students</h3>
+            <p style="font-size: 2rem; font-weight: bold; color: #003366; margin-top: 0.5rem;">{{ total_students }}</p>
+        </div>
+        <div class="card" style="background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid #E2E8F0;">
+            <h3>Flagged High Risk</h3>
+            <p style="font-size: 2rem; font-weight: bold; color: #DC2626; margin-top: 0.5rem;">{{ high_risk }}</p>
+        </div>
+        <div class="card" style="background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid #E2E8F0;">
+            <h3>Low / Moderate Risk</h3>
+            <p style="font-size: 2rem; font-weight: bold; color: #16A34A; margin-top: 0.5rem;">{{ low_risk }}</p>
+        </div>
+    </div>
+
+    <div class="card" style="background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid #E2E8F0; margin-top: 2rem;">
+        <h3>Supervised Classifier Benchmark (Held-Out Test Split)</h3>
+        <table style="width: 100%; margin-top: 1rem; border-collapse: collapse;">
+            <thead>
+                <tr style="background: #F1F5F9; text-align: left;">
+                    <th style="padding: 0.75rem; border-bottom: 2px solid #CBD5E1;">Model</th>
+                    <th style="padding: 0.75rem; border-bottom: 2px solid #CBD5E1;">ROC-AUC</th>
+                    <th style="padding: 0.75rem; border-bottom: 2px solid #CBD5E1;">F1-Score</th>
+                    <th style="padding: 0.75rem; border-bottom: 2px solid #CBD5E1;">Precision</th>
+                    <th style="padding: 0.75rem; border-bottom: 2px solid #CBD5E1;">Recall</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for model_name, score_dict in metrics.items() %}
+                <tr>
+                    <td style="padding: 0.75rem; border-bottom: 1px solid #E2E8F0; font-weight: bold;">{{ model_name | upper }}</td>
+                    <td style="padding: 0.75rem; border-bottom: 1px solid #E2E8F0;">{{ score_dict.roc_auc }}</td>
+                    <td style="padding: 0.75rem; border-bottom: 1px solid #E2E8F0;">{{ score_dict.f1 }}</td>
+                    <td style="padding: 0.75rem; border-bottom: 1px solid #E2E8F0;">{{ score_dict.precision }}</td>
+                    <td style="padding: 0.75rem; border-bottom: 1px solid #E2E8F0;">{{ score_dict.recall }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
