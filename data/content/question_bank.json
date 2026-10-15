@@ -1,0 +1,64 @@
+{
+  "questions": [
+    {
+      "question_id": "Q1",
+      "concept_id": "C01",
+      "question_text": "Why must composite keys (id_student, code_module, code_presentation) be used when merging OULAD tables?",
+      "options": [
+        "Students only take one module in their lifetime",
+        "A student can enroll in multiple modules and presentations across different terms",
+        "Primary keys are optional in pandas",
+        "It prevents missing value imputation"
+      ],
+      "correct_index": 1,
+      "explanation": "OULAD tracks students across multiple course presentations, so student ID alone is not unique."
+    },
+    {
+      "question_id": "Q2",
+      "concept_id": "C02",
+      "question_text": "What is temporal data leakage in early-semester academic risk prediction?",
+      "options": [
+        "Deleting missing rows from the CSV",
+        "Using post-cutoff events like final exam scores or unregistration dates to predict early risk",
+        "Normalizing numerical columns with StandardScaler",
+        "Using Logistic Regression instead of Random Forest"
+      ],
+      "correct_index": 1,
+      "explanation": "Leakage occurs when future information (which wouldn't be available at day T) accidentally enters the feature set."
+    },
+    {
+      "question_id": "Q3",
+      "concept_id": "C03",
+      "question_text": "Which model metric is generally most robust for evaluating imbalanced academic risk datasets?",
+      "options": ["Accuracy", "ROC-AUC and F1-Score", "Total row count", "Execution time"],
+      "correct_index": 1,
+      "explanation": "ROC-AUC and F1-score account for class imbalance between passing and failing students much better than raw accuracy."
+    },
+    {
+      "question_id": "Q4",
+      "concept_id": "C04",
+      "question_text": "What is the primary difference between SHAP and LIME?",
+      "options": [
+        "SHAP relies on cooperative game theory (Shapley values) for consistent attribution, whereas LIME trains a local surrogate model",
+        "SHAP only works for linear regression",
+        "LIME requires GPU acceleration",
+        "There is no difference"
+      ],
+      "correct_index": 0,
+      "explanation": "SHAP provides theoretically guaranteed additive feature attribution based on Shapley values."
+    },
+    {
+      "question_id": "Q5",
+      "concept_id": "C05",
+      "question_text": "In Bayesian Knowledge Tracing (BKT), what does a high Slip probability P(S) represent?",
+      "options": [
+        "The student guessed the answer correctly without knowing the concept",
+        "The student knows the concept but made a mistake or careless error",
+        "The student dropped out of the course",
+        "The model is 100% accurate"
+      ],
+      "correct_index": 1,
+      "explanation": "Slip probability accounts for students who have mastered the skill but still answer incorrectly due to noise or fatigue."
+    }
+  ]
+}
