@@ -12,6 +12,7 @@ import pandas as pd
 import numpy as np
 from flask import Flask, render_template, request, jsonify
 from src.models.explainability import generate_student_explanation
+from src.adaptive.bkt_engine import BKTEngine
 
 # Correctly resolve absolute paths for templates and static folders
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -132,6 +133,40 @@ def api_student_explanation(student_id):
         "status": "success",
         "data": explanation_result
     })
+
+# Initialize the BKT engine instance for quiz concept tracking
+bkt_engine = BKTEngine(p_init=0.2, p_transit=0.1, p_slip=0.1, p_guess=0.2)
+
+@app.route('/api/v1/quiz/submit', methods=['POST'])
+def submit_quiz_answer():
+    """
+    API endpoint for adaptive quiz submissions.
+    Expects JSON payload: { "current_mastery": 0.35, "correct": true }
+    Returns the updated BKT mastery probability.
+    """
+    try:
+        data = request.get_json()
+        current_mastery = float(data.get('current_mastery', 0.2))
+        correct = bool(data.get('correct', False))
+        
+        # Calculate updated mastery probability using Aryan's BKT engine
+        updated_mastery = bkt_engine.update_mastery(current_mastery, correct)
+        
+        # Determine current mastery tier / status
+        status = "Mastered" if updated_mastery >= 0.8 else "In Progress"
+        
+        return jsonify({
+            "status": "success",
+            "previous_mastery": current_mastery,
+            "correct": correct,
+            "updated_mastery": updated_mastery,
+            "concept_status": status
+        }), 200
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 400
 
 if __name__ == "__main__":
     print("[INFO] Starting Mentora AI Flask Web Server on http://127.0.0.1:5000")
