@@ -11,6 +11,7 @@ import json
 import pandas as pd
 import numpy as np
 from flask import Flask, render_template, request, jsonify
+from src.models.explainability import generate_student_explanation
 
 # Correctly resolve absolute paths for templates and static folders
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -115,6 +116,21 @@ def api_simulate_counterfactual():
         "risk_delta": round(simulated_risk - base_risk, 2),
         "new_tier": tier,
         "message": f"Adjusting VLE clicks to {sim_clicks} and quiz score to {sim_score}% updates estimated risk to {int(simulated_risk*100)}% ({tier})."
+    })
+
+@app.route("/api/v1/explain/<int:student_id>", methods=["GET"])
+def api_student_explanation(student_id):
+    """
+    REST API endpoint that computes and returns SHAP local feature 
+    attributions for a given student ID.
+    """
+    explanation_result = generate_student_explanation(student_id, DATA_PATH)
+    if "error" in explanation_result:
+        return jsonify(explanation_result), 404
+        
+    return jsonify({
+        "status": "success",
+        "data": explanation_result
     })
 
 if __name__ == "__main__":
