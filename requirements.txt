@@ -1,9 +1,9 @@
 ﻿flask==3.0.3
-pandas==2.2.2
-numpy==1.26.4
-scikit-learn==1.5.1
-shap==0.46.0
-lime==0.2.0.1
+pandas>=2.3.0
+numpy>=1.26.4
+scikit-learn>=1.5.1
+shap>=0.50.0
+lime>=0.2.0.1
 pypdf==4.3.1
-matplotlib==3.9.1
+matplotlib>=3.9.2
 pytest==8.3.2
