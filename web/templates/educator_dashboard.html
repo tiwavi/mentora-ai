@@ -1,49 +1,3 @@
-# 1. Ensure the templates folder exists
-New-Item -ItemType Directory -Force -Path "web/templates" | Out-Null
-
-# 2. Create base.html
-Set-Content -Path "web/templates/base.html" -Encoding UTF8 -Value @"
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Mentora AI — Adaptive Education Platform{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-</head>
-<body>
-    <header class="navbar">
-        <div class="nav-container">
-            <div class="brand">
-                <span class="brand-logo">🧠</span>
-                <span class="brand-name">Mentora AI</span>
-                <span class="brand-tag">Explainable Learning Analytics</span>
-            </div>
-            <nav class="nav-links">
-                <a href="/" class="nav-link">Educator Dashboard</a>
-                <a href="/student" class="nav-link">Student Workspace</a>
-                <a href="/quiz" class="nav-link">Adaptive Quiz & Tutor</a>
-            </nav>
-        </div>
-    </header>
-
-    <div class="ethics-banner">
-        <span>⚠️ <strong>Advisory Notice:</strong> Risk predictions and XAI attributions reflect historical observational patterns (OULAD) for early support and guidance—not automated judgments.</span>
-    </div>
-
-    <main class="main-content">
-        {% block content %}{% endblock %}
-    </main>
-
-    <footer class="footer">
-        <p>Mentora AI &mdash; Team DataPulse (Graphic Era Deemed to be University, MCA PBL-III)</p>
-    </footer>
-</body>
-</html>
-"@
-
-# 3. Create educator_dashboard.html with the interactive roster and XAI modal
-Set-Content -Path "web/templates/educator_dashboard.html" -Encoding UTF8 -Value @"
 {% extends "base.html" %}
 {% block title %}Educator Dashboard — Mentora AI{% endblock %}
 {% block content %}
@@ -196,6 +150,3 @@ function closeModal() {
 }
 </script>
 {% endblock %}
-"@
-
-Write-Host "✅ educator_dashboard.html and base.html created successfully!" -ForegroundColor Green
