@@ -1,3 +1,5 @@
+
+<!DOCTYPE html>
 ﻿<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,6 +7,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Mentora AI — Adaptive Education Platform{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <!-- Top Navigation Bar -->
 </head>
 <body>
     <header class="navbar">
@@ -22,16 +29,30 @@
         </div>
     </header>
 
+
+    <!-- Ethics & Observational Disclaimer Banner -->
+
     <div class="ethics-banner">
         <span>⚠️ <strong>Advisory Notice:</strong> Risk predictions and XAI attributions reflect historical observational patterns (OULAD) for early support and guidance—not automated judgments.</span>
     </div>
+
+
 
     <main class="main-content">
         {% block content %}{% endblock %}
     </main>
 
+    <!-- Footer -->
+    <footer class="footer">
+        <p>Mentora AI &mdash; Team DataPulse (Graphic Era Deemed to be University, MCA PBL-III)</p>
+    </footer>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
     <footer class="footer">
         <p>Mentora AI &mdash; Team DataPulse (Graphic Era Deemed to be University, MCA PBL-III)</p>
     </footer>
 </body>
 </html>
+
