@@ -1,6 +1,8 @@
 import os
 import json
 import math
+import csv
+import io
 from flask import Flask, render_template, request, jsonify
 from src.adaptive.bkt_engine import BKTEngine, QUESTION_BANK, get_questions_for_concept
 from src.models.explainability import generate_student_explanation
@@ -342,6 +344,59 @@ def tutor_chat():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 400
 
+@app.route('/api/v1/students/upload-csv', methods=['POST'])
+def upload_student_csv():
+    try:
+        if 'file' not in request.files:
+            return jsonify({"status": "error", "message": "No file part uploaded."}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"status": "error", "message": "No selected file."}), 400
+
+        if not file.filename.endswith('.csv'):
+            return jsonify({"status": "error", "message": "Only .csv files are supported."}), 400
+
+        # Read CSV file stream
+        stream = io.TextIOWrapper(file.stream, encoding='utf-8')
+        reader = csv.DictReader(stream)
+
+        added_count = 0
+        for row in reader:
+            student_id = row.get('student_id') or row.get('Student ID') or f"CSV-{len(LIVE_COHORT) + 201}"
+            name = row.get('name') or row.get('Name') or student_id
+            module = row.get('module') or row.get('Module') or 'Batch CSV (2026)'
+            vle_clicks = float(row.get('vle_clicks') or row.get('VLE Clicks') or 400)
+            quiz_avg = float(row.get('quiz_avg') or row.get('Quiz Avg') or 50)
+            late_submissions = int(row.get('late_submissions') or row.get('Late Submissions') or 0)
+            concept = row.get('recommended_concept') or row.get('Concept') or 'AUTO'
+
+            evaluated = evaluate_student_profile(
+                student_id=student_id.strip(),
+                name=name.strip(),
+                module=module.strip(),
+                vle_clicks=vle_clicks,
+                quiz_avg=quiz_avg,
+                late_submissions=late_submissions,
+                weak_concept=concept.strip()
+            )
+
+            # Prevent duplicate IDs, update or insert
+            existing_idx = next((i for i, s in enumerate(LIVE_COHORT) if s["student_id"] == evaluated["student_id"]), None)
+            if existing_idx is not None:
+                LIVE_COHORT[existing_idx] = evaluated
+            else:
+                LIVE_COHORT.insert(0, evaluated)
+            added_count += 1
+
+        return jsonify({
+            "status": "success",
+            "message": f"Successfully evaluated and imported {added_count} student profiles from CSV.",
+            "cohort_size": len(LIVE_COHORT)
+        }), 200
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
 
 # ==================== SERVER RUN ====================
 

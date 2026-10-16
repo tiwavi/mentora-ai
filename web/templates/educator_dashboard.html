@@ -61,6 +61,62 @@
         </div>
     </form>
 
+    <!-- Bulk CSV Upload Card -->
+<div class="card-box" style="border-left: 5px solid #16a34a; margin-bottom: 20px;">
+    <h3 style="margin-top: 0; color: #16a34a;">📁 Bulk Import & Analyze Students via CSV</h3>
+    <p style="color: #64748b; font-size: 0.92rem; margin-bottom: 14px;">
+        Upload a CSV file containing multiple student records. The model will instantly calculate risk probabilities, local SHAP drivers, and BKT mastery states for all rows.
+    </p>
+
+    <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+        <input type="file" id="csvFileInput" accept=".csv" class="search-input" style="padding: 6px; background: #fff; flex: 1; min-width: 240px;">
+        <button type="button" class="next-btn" style="display: inline-block; margin-top: 0; background: #16a34a;" onclick="uploadStudentCSV()">Upload & Run Batch Analysis</button>
+        <a href="data:text/csv;charset=utf-8,student_id%2Cname%2Cmodule%2Cvle_clicks%2Cquiz_avg%2Clate_submissions%0AEX-01%2CSiddharth%20Rao%2FDBMS%2C180%2C32%2C4%0AEX-02%2CAnanya%2CIyer%2FDBMS%2C1150%2C88%2C0" download="sample_students.csv" class="action-btn" style="text-decoration: none; padding: 10px 14px;">Download Sample CSV Template</a>
+    </div>
+
+    <div id="csv-upload-feedback" class="feedback-box alert-success-custom" style="margin-top: 14px; display: none;"></div>
+</div>
+
+<script>
+async function uploadStudentCSV() {
+    const fileInput = document.getElementById('csvFileInput');
+    const feedbackBox = document.getElementById('csv-upload-feedback');
+
+    if (!fileInput.files.length) {
+        alert('Please select a CSV file first.');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+
+    try {
+        feedbackBox.style.display = 'block';
+        feedbackBox.innerText = 'Uploading and running batch ML & SHAP analysis...';
+
+        const res = await fetch('/api/v1/students/upload-csv', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+
+        if (data.status === 'success') {
+            feedbackBox.className = 'feedback-box alert-success-custom';
+            feedbackBox.innerText = data.message;
+            // Reload page after 1.5 seconds to render the newly imported cohort
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            feedbackBox.className = 'feedback-box alert-danger-custom';
+            feedbackBox.innerText = `Error: ${data.message}`;
+        }
+    } catch (err) {
+        console.error('CSV upload error:', err);
+        feedbackBox.className = 'feedback-box alert-danger-custom';
+        feedbackBox.innerText = 'Failed to upload CSV file.';
+    }
+}
+</script>
+
     <!-- Instant Model Analysis Output Box -->
     <div id="live-analysis-result" class="feedback-box alert-success-custom" style="margin-top: 18px;"></div>
 </div>
