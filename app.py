@@ -12,6 +12,7 @@ import pandas as pd
 import numpy as np
 from flask import Flask, render_template, request, jsonify
 from src.models.explainability import generate_student_explanation
+from src.adaptive.bkt_engine import BKTEngine
 
 # Correctly resolve absolute paths for templates and static folders
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -131,6 +132,29 @@ def api_student_explanation(student_id):
     return jsonify({
         "status": "success",
         "data": explanation_result
+    })
+
+bkt_engine = BKTEngine()
+
+@app.route('/quiz')
+def quiz_page():
+    return render_template('quiz_tutor.html')
+
+@app.route('/api/v1/quiz/submit', methods=['POST'])
+def submit_quiz_answer():
+    data = request.get_json()
+    current_mastery = float(data.get('current_mastery', 0.2))
+    correct = bool(data.get('correct', False))
+    
+    updated_mastery = bkt_engine.update_mastery(current_mastery, correct)
+    status = "Mastered" if updated_mastery >= 0.8 else "In Progress"
+    
+    return jsonify({
+        "status": "success",
+        "previous_mastery": current_mastery,
+        "correct": correct,
+        "updated_mastery": updated_mastery,
+        "concept_status": status
     })
 
 if __name__ == "__main__":
