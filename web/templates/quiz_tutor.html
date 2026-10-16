@@ -1,298 +1,304 @@
 ﻿{% extends "base.html" %}
 
 {% block content %}
-<div class="quiz-container">
-    <!-- Top Student & Concept Selector Bar -->
-    <div class="card-box" style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; border-left: 5px solid #1e3a8a;">
+<div class="card-box" style="margin-bottom: 24px; border-left: 5px solid #4f46e5;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
         <div>
             <h2 style="margin: 0; color: #1e3a8a;">Student-Targeted Adaptive Quiz & Grounded PDF Tutor</h2>
-            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 0.92rem;">
-                Questions dynamically prioritize the selected student's diagnosed concept gap and update their BKT mastery state.
+            <p style="color: #64748b; font-size: 0.92rem; margin-top: 4px;">
+                Dynamic questions prioritize the selected student's diagnosed student gap via Bayesian Knowledge Tracing (BKT).
             </p>
         </div>
-        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-            <div>
-                <label style="font-size: 0.8rem; font-weight: 600; color: #475569; display: block;">Active Student Profile:</label>
-                <select id="studentSelector" class="filter-select" onchange="loadStudentQuiz()">
-                    {% for s in students %}
-                    <option value="{{ s.student_id }}" {% if s.student_id == student.student_id %}selected{% endif %}>
-                        {{ s.name }} ({{ s.student_id }}) — {{ s.risk_level }}
-                    </option>
-                    {% endfor %}
-                </select>
+        <div>
+            <label style="font-size: 0.85rem; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">Active Student Profile:</label>
+            <select id="studentSelect" class="filter-select" onchange="switchStudent(this.value)">
+                {% for s in students %}
+                <option value="{{ s.student_id }}" {% if s.student_id == student.student_id %}selected{% endif %}>
+                    {{ s.name }} ({{ s.student_id }}) — {{ s.risk_level }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; align-items: start;">
+    <!-- Left Column: Adaptive Quiz & Tutor -->
+    <div>
+        <!-- Quiz Card -->
+        <div class="card-box" id="quizCard">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <span id="targetConceptBadge" style="background: #e0e7ff; color: #4f46e5; padding: 6px 14px; border-radius: 999px; font-weight: 700; font-size: 0.82rem;">
+                    Target Concept: {{ student.recommended_concept }}
+                </span>
+                <span id="questionCounter" style="color: #64748b; font-size: 0.88rem; font-weight: 600;">Question 1 of 4</span>
             </div>
-            <div>
-                <label style="font-size: 0.8rem; font-weight: 600; color: #475569; display: block;">Focus Concept:</label>
-                <select id="conceptSelector" class="filter-select" onchange="loadStudentQuiz(true)">
-                    <option value="">Student's Diagnosed Gap (Auto)</option>
-                    {% for c in concepts %}
-                    <option value="{{ c }}">{{ c }}</option>
-                    {% endfor %}
-                </select>
+
+            <h3 id="questionTitle" style="color: #0f172a; margin-top: 0; font-size: 1.15rem;">Loading question...</h3>
+            <p id="questionText" style="color: #334155; font-size: 1rem; line-height: 1.5; margin-bottom: 20px;"></p>
+
+            <div id="optionsContainer" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
+                <!-- Populated dynamically via JS -->
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div id="quizFeedback" style="font-weight: 600; font-size: 0.95rem;"></div>
+                <button type="button" id="nextQuestionBtn" class="next-btn" style="display: none;" onclick="loadNextQuestion()">Next Question ➔</button>
+            </div>
+        </div>
+
+        <!-- Grounded PDF Tutor Card -->
+        <div class="card-box" style="margin-top: 24px;">
+            <h3 style="margin-top: 0; color: #1e3a8a;">Ask the Grounded PDF Tutor</h3>
+            <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 16px;">
+                Have a question about course concepts, database normalization, or BKT analytics? Ask the AI tutor for verified answers backed by course PDF excerpts.
+            </p>
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 16px; min-height: 80px; font-size: 0.92rem; color: #334155;" id="tutorOutput">
+                <strong>PDF Tutor:</strong> Hello! Select a quick prompt above or type any question about your course syllabus below.
+            </div>
+            <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px;">
+                <button type="button" class="action-btn" onclick="askTutor('Explain 3NF vs BCNF')">Explain 3NF vs BCNF</button>
+                <button type="button" class="action-btn" onclick="askTutor('How does BKT track mastery?')">How does BKT track mastery?</button>
+                <button type="button" class="action-btn" onclick="askTutor('What are ACID properties?')">What are ACID properties?</button>
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <input type="text" id="tutorQueryInput" class="search-input" style="flex: 1;" placeholder="Ask a question about course concepts or PDFs...">
+                <button type="button" class="next-btn" style="margin-top: 0;" onclick="submitTutorQuery()">Ask Tutor</button>
             </div>
         </div>
     </div>
 
-    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 25px;">
-        <!-- Left Column: Interactive Quiz Card -->
-        <div class="card-box">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <span id="q-concept-badge" class="badge-mod" style="font-size: 0.85rem;">Loading Concept...</span>
-                <span id="q-counter" style="font-size: 0.88rem; color: #64748b; font-weight: 600;">Question 1 of 12</span>
-            </div>
-
-            <h4 id="q-number" style="color: #334155; font-size: 1.05rem; margin-bottom: 8px;">Loading Question...</h4>
-            <p id="q-text" style="font-weight: 600; color: #0f172a; font-size: 1.08rem; margin-bottom: 20px;"></p>
-
-            <div id="options-container"></div>
-
-            <div id="quiz-feedback" class="feedback-box"></div>
-            <div id="pdf-excerpt-box" class="feedback-box" style="background: #f8fafc; border-left: 4px solid #1e3a8a; color: #334155; font-weight: 400;"></div>
-
-            <div style="display: flex; gap: 10px; margin-top: 15px;">
-                <button class="next-btn" id="next-q-btn" onclick="nextQuestion()">Next Adaptive Question &rarr;</button>
-            </div>
-        </div>
-
-        <!-- Right Column: Student Analysis & BKT Tracker Card -->
-        <div class="card-box">
-            <h4 style="color: #1e3a8a; font-size: 1.1rem; margin-top: 0; margin-bottom: 12px;">Student Diagnostic Summary</h4>
+    <!-- Right Column: Student Diagnostic Summary Card -->
+    <div>
+        <div class="card-box" style="position: sticky; top: 90px;">
+            <h3 style="margin-top: 0; color: #1e3a8a; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">Student Diagnostic Summary</h3>
             
-            <div class="concept-row">
-                <span>Student Name:</span>
-                <strong id="summary-name">{{ student.name }} ({{ student.student_id }})</strong>
-            </div>
-            <div class="concept-row">
-                <span>Predicted Risk:</span>
-                <strong id="summary-risk" style="color: #dc2626;">{{ (student.risk_prob * 100)|round|int }}% ({{ student.risk_level }})</strong>
-            </div>
-            <div class="concept-row">
-                <span>Diagnosed Gap:</span>
-                <strong id="summary-gap" style="color: #1e3a8a;">{{ student.recommended_concept }}</strong>
-            </div>
-            <div class="concept-row" style="border-bottom: none;">
-                <span>SHAP Driver:</span>
-                <span id="summary-shap" style="font-size: 0.85rem; color: #475569; text-align: right;">{{ student.shap_driver }}</span>
-            </div>
-
-            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 16px 0;">
-
-            <div style="margin-bottom: 20px;">
-                <div style="display: flex; justify-content: space-between; font-weight: 600; font-size: 0.95rem;">
-                    <span>Live BKT Concept Mastery:</span>
-                    <span id="mastery-label" style="color: #16a34a;">{{ (student.bkt_mastery * 100)|round|int }}%</span>
+            <div style="display: flex; flex-direction: column; gap: 14px; font-size: 0.92rem; margin-top: 14px;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #64748b;">Student Name:</span>
+                    <strong style="color: #0f172a;">{{ student.name }}</strong>
                 </div>
-                <div class="progress-track">
-                    <div id="mastery-bar" class="progress-fill" style="width: {{ (student.bkt_mastery * 100)|round|int }}%;">
-                        {{ (student.bkt_mastery * 100)|round|int }}%
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #64748b;">Predicted Risk:</span>
+                    <span class="{% if student.risk_level == 'High Risk' %}badge-high{% elif student.risk_level == 'Moderate Risk' %}badge-mod{% else %}badge-low{% endif %}">
+                        {{ student.risk_prob * 100 | int }}% {{ student.risk_level }}
+                    </span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #64748b;">SHAP Driver:</span>
+                    <span style="color: #334155; text-align: right; max-width: 180px; font-size: 0.85rem;">{{ student.shap_driver }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #64748b;">Target Concept:</span>
+                    <strong style="color: #4f46e5; text-align: right;">{{ student.recommended_concept }}</strong>
+                </div>
+
+                <div style="border-top: 1px solid #e2e8f0; padding-top: 14px; margin-top: 4px;">
+                    <div style="display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 6px;">
+                        <span>Live BKT Concept Mastery:</span>
+                        <span id="masteryPercentText">{{ (student.bkt_mastery * 100) | int }}% (In Progress)</span>
+                    </div>
+                    <div class="progress-track">
+                        <div id="masteryProgressBar" class="progress-fill" style="width: {{ student.bkt_mastery * 100 }}%;"></div>
+                    </div>
+                </div>
+
+                <div style="font-size: 0.85rem; color: #64748b; background: #f8fafc; padding: 12px; border-radius: 8px; margin-top: 10px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                        <span>Questions Answered:</span>
+                        <strong id="statAnswered">0</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Correct Responses:</span>
+                        <strong id="statCorrect" style="color: #166534;">0</strong>
                     </div>
                 </div>
             </div>
-
-            <h5 style="font-size: 0.92rem; color: #334155; margin-bottom: 8px; font-weight: 600;">Session Performance</h5>
-            <div class="concept-row">
-                <span>Questions Answered:</span>
-                <strong id="stat-answered">0</strong>
-            </div>
-            <div class="concept-row">
-                <span>Correct Responses:</span>
-                <strong id="stat-correct" style="color: #16a34a;">0</strong>
-            </div>
         </div>
     </div>
-</div>
-
-<!-- Grounded PDF Tutor Chat Box Card -->
-<div class="card-box" style="margin-top: 30px; border-left: 5px solid #16a34a;">
-    <h3 style="margin-top: 0; color: #1e3a8a;">Ask the Grounded PDF Tutor</h3>
-    <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 14px;">
-        Have a question about course concepts, database normalization, or BKT analytics? Ask the AI tutor for verified answers backed by course PDF excerpts.
-    </p>
-
-    <!-- Quick Prompt Chips -->
-    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px;">
-        <button class="action-btn" onclick="askTutorQuick('Explain 3NF vs BCNF')">Explain 3NF vs BCNF</button>
-        <button class="action-btn" onclick="askTutorQuick('How does BKT track mastery?')">How does BKT track mastery?</button>
-        <button class="action-btn" onclick="askTutorQuick('What are ACID properties?')">What are ACID properties?</button>
-        <button class="action-btn" onclick="askTutorQuick('How do SHAP values explain risk?')">How do SHAP values explain risk?</button>
-    </div>
-
-    <!-- Chat Messages Window -->
-    <div id="tutor-chat-window" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; height: 240px; overflow-y: auto; padding: 14px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 10px;">
-        <div style="background: #ffffff; border: 1px solid #cbd5e1; padding: 10px 14px; border-radius: 8px; max-width: 85%;">
-            <strong>PDF Tutor:</strong> Hello! Select a quick prompt above or type any question about your course syllabus below.
-        </div>
-    </div>
-
-    <!-- Chat Input Form -->
-    <form onsubmit="submitTutorChat(event)" style="display: flex; gap: 10px;">
-        <input type="text" id="tutor-input" class="search-input" style="flex: 1;" placeholder="Ask a question about course concepts or PDFs..." required>
-        <button type="submit" class="next-btn" style="display: inline-block; margin-top: 0; padding: 10px 20px;">Ask Tutor</button>
-    </form>
 </div>
 
 <script>
-async function askTutorQuick(questionText) {
-    document.getElementById('tutor-input').value = questionText;
-    await sendChatQuery(questionText);
-}
-
-async function submitTutorChat(event) {
-    event.preventDefault();
-    const input = document.getElementById('tutor-input');
-    const query = input.value;
-    input.value = '';
-    await sendChatQuery(query);
-}
-
-async function sendChatQuery(query) {
-    const chatWindow = document.getElementById('tutor-chat-window');
-
-    // Append user message
-    const userMsg = document.createElement('div');
-    userMsg.style.cssText = "background: #dbeafe; color: #1e3a8a; padding: 10px 14px; border-radius: 8px; max-width: 85%; align-self: flex-end; font-weight: 500;";
-    userMsg.innerHTML = `<strong>You:</strong> ${query}`;
-    chatWindow.appendChild(userMsg);
-    chatWindow.scrollTop = chatWindow.scrollHeight;
-
-    try {
-        const res = await fetch('/api/v1/tutor/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query: query })
-        });
-        const data = await res.json();
-
-        if (data.status === 'success') {
-            const tutorMsg = document.createElement('div');
-            tutorMsg.style.cssText = "background: #ffffff; border: 1px solid #cbd5e1; padding: 10px 14px; border-radius: 8px; max-width: 85%; color: #1e293b;";
-            tutorMsg.innerHTML = `
-                <strong>PDF Tutor:</strong> ${data.answer}<br>
-                <div style="margin-top: 6px; font-size: 0.82rem; color: #16a34a; font-weight: 600;">📚 ${data.citation}</div>
-            `;
-            chatWindow.appendChild(tutorMsg);
-            chatWindow.scrollTop = chatWindow.scrollHeight;
+    const activeStudent = {{ student | tojson | safe }};
+    
+    // Mock adaptive question bank for demonstration
+    const questionBank = [
+        {
+            id: "NORM-1",
+            concept: "Database Normalization (3NF)",
+            title: "Which normal form specifically eliminates transitive functional dependencies of non-prime attributes on the primary key?",
+            options: [
+                "A) First Normal Form (1NF)",
+                "B) Second Normal Form (2NF)",
+                "C) Third Normal Form (3NF)",
+                "D) Unnormalized Form (UNF)"
+            ],
+            correctIndex: 2
+        },
+        {
+            id: "NORM-2",
+            concept: "Database Normalization (3NF)",
+            title: "What is a primary requirement for a relation to be in Second Normal Form (2NF)?",
+            options: [
+                "A) It must be in 1NF and have no partial dependencies on a composite primary key.",
+                "B) It must have no foreign keys.",
+                "C) All attributes must be atomic.",
+                "D) It must eliminate multi-valued attributes."
+            ],
+            correctIndex: 0
+        },
+        {
+            id: "ALG-1",
+            concept: "Relational Algebra & Keys",
+            title: "Which relational algebra operator is used to combine tuples from two relations based on a matching predicate?",
+            options: [
+                "A) Projection (π)",
+                "B) Selection (σ)",
+                "C) Theta Join (⨝)",
+                "D) Union (∪)"
+            ],
+            correctIndex: 2
+        },
+        {
+            id: "ACID-1",
+            concept: "Transaction ACID Properties",
+            title: "Which ACID property ensures that all operations in a transaction complete successfully or none are applied?",
+            options: [
+                "A) Atomicity",
+                "B) Consistency",
+                "C) Isolation",
+                "D) Durability"
+            ],
+            correctIndex: 0
         }
-    } catch (err) {
-        console.error('Chat error:', err);
-    }
-}
-</script>
+    ];
 
-<script>
-let activeStudentId = "{{ student.student_id }}";
-let currentMastery = {{ student.bkt_mastery }};
-let questions = [];
-let currentQIndex = 0;
-let answeredCount = 0;
-let correctCount = 0;
+    let currentQuestionIdx = 0;
+    let answeredCount = 0;
+    let correctCount = 0;
+    let currentMastery = activeStudent.bkt_mastery;
 
-async function loadStudentQuiz(manualConcept = false) {
-    activeStudentId = document.getElementById('studentSelector').value;
-    const conceptOverride = manualConcept ? document.getElementById('conceptSelector').value : '';
-
-    const url = `/api/v1/quiz/questions?student_id=${encodeURIComponent(activeStudentId)}&concept=${encodeURIComponent(conceptOverride)}`;
-    const res = await fetch(url);
-    const data = await res.json();
-
-    if (data.status === 'success') {
-        const s = data.student;
-        currentMastery = s.bkt_mastery;
-        questions = data.questions;
-        currentQIndex = 0;
-
-        // Update right-hand student diagnostic card
-        document.getElementById('summary-name').innerText = `${s.name} (${s.student_id})`;
-        document.getElementById('summary-risk').innerText = `${Math.round(s.risk_prob * 100)}% (${s.risk_level})`;
-        document.getElementById('summary-gap').innerText = data.target_concept;
-        document.getElementById('summary-shap').innerText = s.shap_driver;
-
-        updateMasteryUI(currentMastery, currentMastery >= 0.8 ? 'Mastered' : 'In Progress');
-        renderCurrentQuestion();
-    }
-}
-
-function updateMasteryUI(mastery, statusText) {
-    const pct = Math.round(mastery * 100);
-    document.getElementById('mastery-label').innerText = `${pct}% (${statusText})`;
-    const bar = document.getElementById('mastery-bar');
-    bar.style.width = `${pct}%`;
-    bar.innerText = `${pct}%`;
-}
-
-function renderCurrentQuestion() {
-    if (!questions.length) return;
-    const q = questions[currentQIndex];
-
-    document.getElementById('q-concept-badge').innerText = `Target Concept: ${q.concept}`;
-    document.getElementById('q-counter').innerText = `Question ${currentQIndex + 1} of ${questions.length}`;
-    document.getElementById('q-number').innerText = `Item ID: ${q.id}`;
-    document.getElementById('q-text').innerText = q.question;
-
-    const container = document.getElementById('options-container');
-    container.innerHTML = '';
-    q.options.forEach(opt => {
-        const btn = document.createElement('button');
-        btn.className = 'option-btn';
-        btn.innerText = opt.text;
-        btn.onclick = () => submitAnswer(opt.correct, q.excerpt);
-        container.appendChild(btn);
+    document.addEventListener("DOMContentLoaded", () => {
+        loadQuestion();
     });
 
-    document.getElementById('quiz-feedback').style.display = 'none';
-    document.getElementById('pdf-excerpt-box').style.display = 'none';
-    document.getElementById('next-q-btn').style.display = 'none';
-}
-
-async function submitAnswer(isCorrect, excerpt) {
-    try {
-        const response = await fetch('/api/v1/quiz/submit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                student_id: activeStudentId,
-                current_mastery: currentMastery,
-                correct: isCorrect
-            })
-        });
-        const data = await response.json();
-
-        if (data.status === 'success') {
-            const prevPct = Math.round(currentMastery * 100);
-            currentMastery = data.updated_mastery;
-            const newPct = Math.round(currentMastery * 100);
-
-            answeredCount++;
-            if (isCorrect) correctCount++;
-            document.getElementById('stat-answered').innerText = answeredCount;
-            document.getElementById('stat-correct').innerText = correctCount;
-
-            updateMasteryUI(currentMastery, data.concept_status);
-
-            const fb = document.getElementById('quiz-feedback');
-            fb.style.display = 'block';
-            fb.className = 'feedback-box ' + (isCorrect ? 'alert-success-custom' : 'alert-danger-custom');
-            fb.innerText = isCorrect
-                ? `Correct! BKT updated ${activeStudentId}'s mastery from ${prevPct}% to ${newPct}% (${data.concept_status}).`
-                : `Incorrect. BKT recalibrated ${activeStudentId}'s mastery from ${prevPct}% to ${newPct}% (${data.concept_status}).`;
-
-            const pdfBox = document.getElementById('pdf-excerpt-box');
-            pdfBox.style.display = 'block';
-            pdfBox.innerHTML = `<strong>Grounded PDF Verification:</strong> ${excerpt}`;
-
-            document.getElementById('next-q-btn').style.display = 'inline-block';
-        }
-    } catch (err) {
-        console.error('API Error:', err);
+    function switchStudent(studentId) {
+        window.location.href = `/quiz?student_id=${studentId}`;
     }
-}
 
-function nextQuestion() {
-    currentQIndex = (currentQIndex + 1) % questions.length;
-    renderCurrentQuestion();
-}
+    function loadQuestion() {
+        if (currentQuestionIdx >= questionBank.length) {
+            currentQuestionIdx = 0; // Loop questions
+        }
+        const q = questionBank[currentQuestionIdx];
+        document.getElementById('questionCounter').innerText = `Question ${currentQuestionIdx + 1} of ${questionBank.length}`;
+        document.getElementById('targetConceptBadge').innerText = `Target Concept: ${q.concept}`;
+        document.getElementById('questionTitle').innerText = `ITEM ID: ${q.id}`;
+        document.getElementById('questionText').innerText = q.title;
 
-// Initialize quiz on page load
-window.addEventListener('DOMContentLoaded', () => loadStudentQuiz(false));
+        const container = document.getElementById('optionsContainer');
+        container.innerHTML = '';
+        q.options.forEach((opt, idx) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'quiz-option-btn';
+            btn.innerText = opt;
+            btn.onclick = () => submitAnswer(idx, q.correctIndex);
+            container.appendChild(btn);
+        });
+
+        document.getElementById('quizFeedback').innerText = '';
+        document.getElementById('nextQuestionBtn').style.display = 'none';
+    }
+
+    async function submitAnswer(selectedIdx, correctIdx) {
+        const isCorrect = (selectedIdx === correctIdx);
+        answeredCount++;
+        if (isCorrect) correctCount++;
+
+        document.getElementById('statAnswered').innerText = answeredCount;
+        document.getElementById('statCorrect').innerText = correctCount;
+
+        const feedback = document.getElementById('quizFeedback');
+        const buttons = document.querySelectorAll('.quiz-option-btn');
+        
+        buttons.forEach((btn, idx) => {
+            btn.disabled = true;
+            if (idx === correctIdx) {
+                btn.style.background = '#dcfce7';
+                btn.style.borderColor = '#16a34a';
+                btn.style.color = '#166534';
+            } else if (idx === selectedIdx && !isCorrect) {
+                btn.style.background = '#fee2e2';
+                btn.style.borderColor = '#dc2626';
+                btn.style.color = '#991b1b';
+            }
+        });
+
+        if (isCorrect) {
+            feedback.style.color = '#166534';
+            feedback.innerText = 'Correct! Bayesian Knowledge Tracing updated mastery upwards.';
+        } else {
+            feedback.style.color = '#991b1b';
+            feedback.innerText = 'Incorrect. Review the highlighted concept above.';
+        }
+
+        // Call backend BKT API
+        try {
+            const res = await fetch('/api/v1/quiz/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    student_id: activeStudent.student_id,
+                    current_mastery: currentMastery,
+                    correct: isCorrect
+                })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                currentMastery = data.updated_mastery;
+                const pct = Math.round(currentMastery * 100);
+                document.getElementById('masteryPercentText').innerText = `${pct}% (${data.concept_status})`;
+                document.getElementById('masteryProgressBar').style.width = `${pct}%`;
+            }
+        } catch (err) {
+            console.error('BKT sync error:', err);
+        }
+
+        document.getElementById('nextQuestionBtn').style.display = 'inline-block';
+    }
+
+    function loadNextQuestion() {
+        currentQuestionIdx++;
+        loadQuestion();
+    }
+
+    async function askTutor(queryText) {
+        const input = document.getElementById('tutorQueryInput');
+        if (queryText) input.value = queryText;
+        await submitTutorQuery();
+    }
+
+    async function submitTutorQuery() {
+        const query = document.getElementById('tutorQueryInput').value.trim();
+        const outputBox = document.getElementById('tutorOutput');
+        if (!query) return;
+
+        outputBox.innerHTML = `<strong>PDF Tutor:</strong> Searching course notes for "${query}"...`;
+
+        try {
+            const res = await fetch('/api/v1/tutor/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: query })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                outputBox.innerHTML = `<strong>PDF Tutor:</strong> ${data.answer}<br><br><span style="font-size: 0.82rem; color: #64748b; font-style: italic;">Citation: ${data.citation}</span>`;
+            }
+        } catch (err) {
+            outputBox.innerHTML = `<strong>PDF Tutor:</strong> Failed to retrieve tutor response.`;
+        }
+    }
 </script>
 {% endblock %}
