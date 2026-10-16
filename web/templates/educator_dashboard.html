@@ -1,3 +1,60 @@
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="advisory-banner">
+    <strong>Advisory Notice:</strong> Risk predictions and XAI attributions reflect historical observational patterns (OULAD) for early support and guidance—not automated judgments.
+</div>
+
+<div style="margin-bottom: 24px;">
+    <h2 style="color: #1e3a8a; margin-bottom: 4px;">Educator Cohort Risk & Live Student Analyzer</h2>
+    <p style="color: #64748b; margin-top: 0;">Evaluate new student profiles in real time using the trained OULAD classifier (Cutoff T = 60 Days) and assign targeted BKT quizzes.</p>
+</div>
+
+<!-- Live Add & Analyze Student Card -->
+<div class="card-box" style="border-left: 5px solid #1e3a8a;">
+    <h3 style="margin-top: 0; color: #1e3a8a;">+ Add & Analyze New Student Profile (Live ML + SHAP Inference)</h3>
+    <p style="color: #64748b; font-size: 0.92rem; margin-bottom: 16px;">
+        Enter a student's engagement and assessment metrics below to generate a real-time risk prediction, SHAP feature attribution, and personalized quiz path.
+    </p>
+
+    <form id="addStudentForm" onsubmit="evaluateNewStudent(event)" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; align-items: end;">
+        <div>
+            <label style="font-size: 0.85rem; font-weight: 600; color: #334155;">Student ID</label>
+            <input type="text" id="new_student_id" class="search-input" style="width: 100%; box-sizing: border-box;" placeholder="e.g., MCA-2026-09" required>
+        </div>
+        <div>
+            <label style="font-size: 0.85rem; font-weight: 600; color: #334155;">Student Name</label>
+            <input type="text" id="new_student_name" class="search-input" style="width: 100%; box-sizing: border-box;" placeholder="e.g., Ishaan Rawat" required>
+        </div>
+        <div>
+            <label style="font-size: 0.85rem; font-weight: 600; color: #334155;">Course Module</label>
+            <select id="new_module" class="filter-select" style="width: 100%; box-sizing: border-box;">
+                <option value="DBMS (MCA-301)">DBMS (MCA-301)</option>
+                <option value="ML & XAI (MCA-305)">ML & XAI (MCA-305)</option>
+                <option value="AAA (2013J)">OULAD AAA (2013J)</option>
+                <option value="FFF (2014J)">OULAD FFF (2014J)</option>
+            </select>
+        </div>
+        <div>
+            <label style="font-size: 0.85rem; font-weight: 600; color: #334155;">VLE Clicks (T=60)</label>
+            <input type="number" id="new_clicks" class="search-input" style="width: 100%; box-sizing: border-box;" value="280" min="0" max="5000" required>
+        </div>
+        <div>
+            <label style="font-size: 0.85rem; font-weight: 600; color: #334155;">Quiz Avg (%)</label>
+            <input type="number" id="new_quiz_avg" class="search-input" style="width: 100%; box-sizing: border-box;" value="42" min="0" max="100" step="0.5" required>
+        </div>
+        <div>
+            <label style="font-size: 0.85rem; font-weight: 600; color: #334155;">Late Submissions</label>
+            <input type="number" id="new_late" class="search-input" style="width: 100%; box-sizing: border-box;" value="2" min="0" max="10" required>
+        </div>
+        <div>
+            <label style="font-size: 0.85rem; font-weight: 600; color: #334155;">Target Concept Gap</label>
+            <select id="new_concept" class="filter-select" style="width: 100%; box-sizing: border-box;">
+                <option value="AUTO">Auto-Detect from Score</option>
+                {% for c in concepts %}
+                <option value="{{ c }}">{{ c }}</option>
+
 {% extends "base.html" %}
 {% block title %}Educator Dashboard — Mentora AI{% endblock %}
 {% block content %}
@@ -84,11 +141,208 @@
                     <td style="padding: 0.75rem; border-bottom: 1px solid #E2E8F0;">{{ score_dict.precision }}</td>
                     <td style="padding: 0.75rem; border-bottom: 1px solid #E2E8F0;">{{ score_dict.recall }}</td>
                 </tr>
+
                 {% endfor %}
-            </tbody>
-        </table>
-    </div>
+            </select>
+        </div>
+        <div>
+            <button type="submit" class="next-btn" style="display: inline-block; width: 100%; margin-top: 0;">Analyze & Add Student</button>
+        </div>
+    </form>
+
+    <!-- Instant Model Analysis Output Box -->
+    <div id="live-analysis-result" class="feedback-box alert-success-custom" style="margin-top: 18px;"></div>
 </div>
+
+<!-- Interactive Student Risk Roster -->
+<div class="card-box">
+    <div class="toolbar">
+        <div>
+            <h3 style="margin: 0; color: #1e293b;">Evaluated Student Cohort & Targeted Quiz Launcher</h3>
+            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 0.9rem;">Click <strong>Launch Targeted Quiz</strong> on any student to open a personalized BKT quiz for their diagnosed concept gap.</p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <input type="text" id="studentSearch" class="search-input" placeholder="Search ID, Name, or Module..." onkeyup="filterRoster()">
+            <select id="riskFilter" class="filter-select" onchange="filterRoster()">
+                <option value="ALL">All Risk Levels</option>
+                <option value="High Risk">High Risk Only</option>
+                <option value="Moderate Risk">Moderate Risk Only</option>
+                <option value="Low Risk">Low Risk Only</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="educator-action-alert" class="feedback-box alert-success-custom" style="margin-bottom: 16px;"></div>
+
+    <table class="data-table" id="rosterTable">
+        <thead>
+            <tr>
+                <th>Student</th>
+                <th>Module</th>
+                <th>VLE Clicks</th>
+                <th>Quiz Avg</th>
+                <th>Predicted Risk</th>
+                <th>Local SHAP Attribution</th>
+                <th>Diagnosed Concept Gap</th>
+                <th>BKT Mastery</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="rosterBody">
+            {% for s in students %}
+            <tr class="student-row" data-risk="{{ s.risk_level }}">
+                <td>
+                    <div style="font-weight: 700; color: #1e3a8a;">{{ s.student_id }}</div>
+                    <div style="font-size: 0.82rem; color: #64748b;">{{ s.name }}</div>
+                </td>
+                <td>{{ s.module }}</td>
+                <td>{{ s.vle_clicks }}</td>
+                <td>{{ s.quiz_avg }}%</td>
+                <td>
+                    {% if s.risk_level == 'High Risk' %}
+                        <span class="badge-high">{{ (s.risk_prob * 100)|round|int }}% ({{ s.risk_level }})</span>
+                    {% elif s.risk_level == 'Moderate Risk' %}
+                        <span class="badge-mod">{{ (s.risk_prob * 100)|round|int }}% ({{ s.risk_level }})</span>
+                    {% else %}
+                        <span class="badge-low">{{ (s.risk_prob * 100)|round|int }}% ({{ s.risk_level }})</span>
+                    {% endif %}
+                </td>
+                <td style="font-size: 0.85rem; color: #334155;">{{ s.shap_driver }}</td>
+                <td style="font-weight: 600; color: #0f172a; font-size: 0.88rem;">{{ s.recommended_concept }}</td>
+                <td style="font-weight: 700; color: #16a34a;">{{ (s.bkt_mastery * 100)|round|int }}%</td>
+                <td>
+                    <a href="/quiz?student_id={{ s.student_id }}" class="action-btn" style="text-decoration: none; display: inline-block;">
+                        Launch Targeted Quiz &rarr;
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Historical OULAD Training Benchmark Reference -->
+<div class="card-box">
+    <h3 style="margin-top: 0; color: #1e293b;">Underlying OULAD Model Benchmark (32,593 Historical Profiles)</h3>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Model</th>
+                <th>ROC-AUC</th>
+                <th>F1-Score</th>
+                <th>Precision</th>
+                <th>Recall</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="font-weight: 600;">LOGISTIC_REGRESSION</td>
+                <td>0.9645</td>
+                <td>0.9010</td>
+                <td>0.8895</td>
+                <td>0.9128</td>
+            </tr>
+            <tr>
+                <td style="font-weight: 600;">DECISION_TREE</td>
+                <td>0.9687</td>
+                <td>0.9374</td>
+                <td>0.9152</td>
+                <td>0.9607</td>
+            </tr>
+            <tr>
+                <td style="font-weight: 600;">RANDOM_FOREST</td>
+                <td>0.9793</td>
+                <td>0.9299</td>
+                <td>0.8912</td>
+                <td>0.9721</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+async function evaluateNewStudent(event) {
+    event.preventDefault();
+    const payload = {
+        student_id: document.getElementById('new_student_id').value,
+        name: document.getElementById('new_student_name').value,
+        module: document.getElementById('new_module').value,
+        vle_clicks: document.getElementById('new_clicks').value,
+        quiz_avg: document.getElementById('new_quiz_avg').value,
+        late_submissions: document.getElementById('new_late').value,
+        recommended_concept: document.getElementById('new_concept').value
+    };
+
+    try {
+        const res = await fetch('/api/v1/students/evaluate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+
+        if (data.status === 'success') {
+            const s = data.student;
+            const riskPct = Math.round(s.risk_prob * 100);
+            const masteryPct = Math.round(s.bkt_mastery * 100);
+            const badgeClass = s.risk_level === 'High Risk' ? 'badge-high' : (s.risk_level === 'Moderate Risk' ? 'badge-mod' : 'badge-low');
+
+            // Show instant analysis summary with direct link to student's quiz
+            const resBox = document.getElementById('live-analysis-result');
+            resBox.style.display = 'block';
+            resBox.className = 'feedback-box ' + (s.risk_level === 'High Risk' ? 'alert-danger-custom' : 'alert-success-custom');
+            resBox.innerHTML = `
+                <strong>Model Analysis Complete for ${s.name} (${s.student_id}):</strong><br>
+                Predicted Academic Risk: <strong>${riskPct}% (${s.risk_level})</strong> | 
+                SHAP Attribution: <em>${s.shap_driver}</em> | 
+                Diagnosed Concept Gap: <strong>${s.recommended_concept}</strong>
+                <a href="/quiz?student_id=${encodeURIComponent(s.student_id)}" class="action-btn" style="margin-left: 12px; text-decoration: none; background: #1e3a8a; color: #fff;">
+                    Start Personalized Quiz for ${s.name} &rarr;
+                </a>
+            `;
+
+            // Prepend new row to the live roster table
+            const tbody = document.getElementById('rosterBody');
+            const tr = document.createElement('tr');
+            tr.className = 'student-row';
+            tr.setAttribute('data-risk', s.risk_level);
+            tr.innerHTML = `
+                <td>
+                    <div style="font-weight: 700; color: #1e3a8a;">${s.student_id}</div>
+                    <div style="font-size: 0.82rem; color: #64748b;">${s.name}</div>
+                </td>
+                <td>${s.module}</td>
+                <td>${s.vle_clicks}</td>
+                <td>${s.quiz_avg}%</td>
+                <td><span class="${badgeClass}">${riskPct}% (${s.risk_level})</span></td>
+                <td style="font-size: 0.85rem; color: #334155;">${s.shap_driver}</td>
+                <td style="font-weight: 600; color: #0f172a; font-size: 0.88rem;">${s.recommended_concept}</td>
+                <td style="font-weight: 700; color: #16a34a;">${masteryPct}%</td>
+                <td>
+                    <a href="/quiz?student_id=${encodeURIComponent(s.student_id)}" class="action-btn" style="text-decoration: none; display: inline-block;">
+                        Launch Targeted Quiz &rarr;
+                    </a>
+                </td>
+            `;
+            tbody.prepend(tr);
+        }
+    } catch (err) {
+        console.error('Error evaluating student:', err);
+    }
+}
+
+function filterRoster() {
+    const searchVal = document.getElementById('studentSearch').value.toLowerCase();
+    const riskVal = document.getElementById('riskFilter').value;
+    const rows = document.querySelectorAll('#rosterTable tbody .student-row');
+
+    rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        const rowRisk = row.getAttribute('data-risk');
+        const matchesSearch = text.includes(searchVal);
+        const matchesRisk = (riskVal === 'ALL' || rowRisk === riskVal);
+        row.style.display = (matchesSearch && matchesRisk) ? '' : 'none';
+    });
 
 <!-- XAI Inspection Modal -->
 <div id="xaiModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center;">
