@@ -1,73 +1,27 @@
-
-<!DOCTYPE html>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Mentora AI — Adaptive Education Platform</title>
-    <!-- Link to external clean static stylesheet -->
+    <title>Mentora AI - Educational Analytics & Adaptive Learning</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-
-    <title>{% block title %}Mentora AI — Adaptive Education Platform{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-
-    {% block extra_head %}{% endblock %}
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-    <!-- Top Navigation Bar -->
-
-</head>
-<body>
-
-
-    <!-- Top Navigation Bar -->
+    <!-- Modern Horizontal Navbar -->
     <nav class="navbar">
-        <a class="navbar-brand" href="/">Mentora AI Explainable Learning Analytics</a>
-        <ul class="navbar-nav">
-            <li><a href="/">Educator Dashboard</a></li>
-            <li><a href="/student">Student Workspace</a></li>
-            <li><a href="/quiz">Adaptive Quiz & Tutor</a></li>
-        </ul>
+        <div class="nav-brand">
+            <h1>Mentora AI</h1>
+        </div>
+        <div class="nav-links">
+            <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}">Educator Dashboard</a>
+            <a href="/student" class="nav-link {% if request.path == '/student' %}active{% endif %}">Student Workspace</a>
+            <a href="/quiz" class="nav-link {% if request.path == '/quiz' %}active{% endif %}">Adaptive BKT Quiz & Tutor</a>
+        </div>
     </nav>
 
-    <!-- Main Content Injection Block -->
-    <div class="main-container">
-
-
-    <!-- Ethics & Observational Disclaimer Banner -->
-
-    <div class="ethics-banner">
-        <span>⚠️ <strong>Advisory Notice:</strong> Risk predictions and XAI attributions reflect historical observational patterns (OULAD) for early support and guidance—not automated judgments.</span>
-    </div>
-
-
-
-    <main class="main-content">
-
+    <main class="container">
         {% block content %}{% endblock %}
-    </div>
-
-    <!-- Footer -->
-    <footer>
-        Mentora AI — Team DataPulse (Graphic Era Deemed to be University, MCA PBE-III)[cite: 1, 2]
-    </footer>
-
+    </main>
 </body>
 </html>
-
-    <footer class="footer">
-        <p>Mentora AI &mdash; Team DataPulse (Graphic Era Deemed to be University, MCA PBL-III)</p>
-    </footer>
-
-    {% block extra_js %}{% endblock %}
-</body>
-</html>
-    <footer class="footer">
-        <p>Mentora AI &mdash; Team DataPulse (Graphic Era Deemed to be University, MCA PBL-III)</p>
-    </footer>
-</body>
-</html>
-
-
