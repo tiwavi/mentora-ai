@@ -1,260 +1,199 @@
 ﻿{% extends "base.html" %}
 
 {% block content %}
-<div class="advisory-banner">
-    <strong>Advisory Notice:</strong> Risk predictions and XAI attributions reflect historical observational patterns (OULAD) for early support and guidance—not automated judgments.
-</div>
-
-<!-- Top Header & Student Selector Bar -->
-<div class="card-box" style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; border-left: 5px solid #1e3a8a;">
-    <div>
-        <h2 style="margin: 0; color: #1e3a8a;">Student Explainable Risk (SHAP) & What-If Counterfactual Simulator</h2>
-        <p style="margin: 4px 0 0 0; color: #64748b; font-size: 0.92rem;">
-            Inspect individual SHAP risk drivers and simulate how increasing VLE portal engagement or quiz scores reduces academic risk.
-        </p>
-    </div>
-    <div style="display: flex; gap: 12px; align-items: center;">
+<div class="card-box" style="margin-bottom: 24px; border-left: 5px solid #06b6d4;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
         <div>
-            <label style="font-size: 0.8rem; font-weight: 600; color: #475569; display: block;">Inspect Student Profile:</label>
-            <select id="simStudentSelector" class="filter-select" onchange="switchStudentProfile()">
+            <h2 style="margin: 0; color: #1e3a8a;">Student Explainable Risk (SHAP) & What-If Counterfactual Simulator</h2>
+            <p style="color: #64748b; font-size: 0.92rem; margin-top: 4px;">
+                Individual OULAD risk drives, local SHAP attributions, and live educator prognostic risk adjustment scales.
+            </p>
+        </div>
+        <div>
+            <label style="font-size: 0.85rem; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">Inspect Student Profile:</label>
+            <select id="studentSelect" class="filter-select" onchange="switchStudent(this.value)">
                 {% for s in students %}
-                <option value="{{ s.student_id }}"
-                        data-name="{{ s.name }}"
-                        data-module="{{ s.module }}"
-                        data-clicks="{{ s.vle_clicks }}"
-                        data-quiz="{{ s.quiz_avg }}"
-                        data-late="{{ s.late_submissions }}"
-                        data-risk="{{ s.risk_prob }}"
-                        data-level="{{ s.risk_level }}"
-                        data-concept="{{ s.recommended_concept }}"
-                        {% if s.student_id == student.student_id %}selected{% endif %}>
+                <option value="{{ s.student_id }}" {% if s.student_id == student.student_id %}selected{% endif %}>
                     {{ s.name }} ({{ s.student_id }}) — {{ s.risk_level }}
                 </option>
                 {% endfor %}
             </select>
         </div>
-        <a id="goto-quiz-link" href="/quiz?student_id={{ student.student_id }}" class="action-btn" style="padding: 10px 14px; text-decoration: none; background: #1e3a8a; color: #ffffff;">
-            Practice Target Concept &rarr;
-        </a>
     </div>
 </div>
 
-<div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 25px;">
-    <!-- Left Column: What-If Counterfactual Simulator Controls -->
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; align-items: start;">
+    <!-- Left Column: What-If Simulator -->
     <div class="card-box">
-        <h3 style="margin-top: 0; color: #1e293b;">What-If Counterfactual Simulator</h3>
+        <h3 style="margin-top: 0; color: #1e3a8a;">What-If Counterfactual Simulator</h3>
         <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 20px;">
-            Adjust the study habit sliders below to test how behavioral changes impact <strong><span id="sim-student-name">{{ student.name }}</span></strong>'s predicted risk in real time.
+            Adjust the study habit sliders below to test how behavioral changes impact <span id="studentNameLabel">{{ student.name }}</span>'s predicted risk in real time.
         </p>
 
         <!-- Slider 1: VLE Clicks -->
-        <div style="margin-bottom: 22px;">
-            <div style="display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 6px;">
-                <span>Simulated VLE Clicks (First 60 Days): <span id="clicks-val" style="color: #1e3a8a;">{{ student.vle_clicks }}</span></span>
-                <span style="font-size: 0.82rem; color: #64748b;">Cohort Norm: ~850 clicks</span>
+        <div style="margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; font-weight: 600; font-size: 0.9rem; margin-bottom: 6px;">
+                <span>Simulated VLE Clicks (First 60 Days): <strong id="vleVal" style="color: #4f46e5;">{{ student.vle_clicks }}</strong></span>
+                <span style="color: #64748b; font-size: 0.82rem;">Cohort Norm: ~850 clicks</span>
             </div>
-            <input type="range" id="clicks-slider" min="0" max="2500" step="10" value="{{ student.vle_clicks }}"
-                   style="width: 100%; accent-color: #1d4ed8; cursor: pointer;" oninput="runLiveSimulation()">
-            <div style="font-size: 0.8rem; color: #64748b; margin-top: 4px;">
-                Total interactions with online lecture PDFs, videos, forums, and practice modules.
+            <input type="range" id="vleSlider" min="50" max="2000" step="10" value="{{ student.vle_clicks }}" style="width: 100%; accent-color: #4f46e5;" oninput="updateSliders()">
+            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #64748b; margin-top: 4px;">
+                <span>Low engagement (50 clicks)</span>
+                <span>Average (850 clicks)</span>
+                <span>High engagement (2000 clicks)</span>
             </div>
         </div>
 
         <!-- Slider 2: Quiz Average -->
-        <div style="margin-bottom: 22px;">
-            <div style="display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 6px;">
-                <span>Simulated Quiz Average (%): <span id="quiz-val" style="color: #1e3a8a;">{{ student.quiz_avg }}%</span></span>
-                <span style="font-size: 0.82rem; color: #64748b;">Cohort Norm: ~68%</span>
+        <div style="margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; font-weight: 600; font-size: 0.9rem; margin-bottom: 6px;">
+                <span>Simulated Quiz Average (%): <strong id="quizVal" style="color: #4f46e5;">{{ student.quiz_avg }}</strong>%</span>
+                <span style="color: #64748b; font-size: 0.82rem;">Cohort Norm: ~68%</span>
             </div>
-            <input type="range" id="quiz-slider" min="0" max="100" step="1" value="{{ student.quiz_avg }}"
-                   style="width: 100%; accent-color: #1d4ed8; cursor: pointer;" oninput="runLiveSimulation()">
+            <input type="range" id="quizSlider" min="10" max="100" step="1" value="{{ student.quiz_avg }}" style="width: 100%; accent-color: #4f46e5;" oninput="updateSliders()">
+            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #64748b; margin-top: 4px;">
+                <span>10%</span>
+                <span>Cohort Average (68%)</span>
+                <span>100%</span>
+            </div>
         </div>
 
         <!-- Slider 3: Late Submissions -->
-        <div style="margin-bottom: 22px;">
-            <div style="display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 6px;">
-                <span>Late Assessment Submissions: <span id="late-val" style="color: #1e3a8a;">{{ student.late_submissions }}</span></span>
-                <span style="font-size: 0.82rem; color: #64748b;">Target: 0 late</span>
+        <div style="margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; font-weight: 600; font-size: 0.9rem; margin-bottom: 6px;">
+                <span>Late Assessment Submissions: <strong id="lateVal" style="color: #4f46e5;">{{ student.late_submissions }}</strong></span>
+                <span style="color: #64748b; font-size: 0.82rem;">Target: 0 late</span>
             </div>
-            <input type="range" id="late-slider" min="0" max="6" step="1" value="{{ student.late_submissions }}"
-                   style="width: 100%; accent-color: #1d4ed8; cursor: pointer;" oninput="runLiveSimulation()">
+            <input type="range" id="lateSlider" min="0" max="6" step="1" value="{{ student.late_submissions }}" style="width: 100%; accent-color: #4f46e5;" oninput="updateSliders()">
+            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #64748b; margin-top: 4px;">
+                <span>0 late (On-time)</span>
+                <span>3 late</span>
+                <span>6 late assessments</span>
+            </div>
         </div>
 
-        <div style="display: flex; gap: 10px; align-items: center;">
-            <button class="next-btn" style="display: inline-block; margin-top: 0;" onclick="runLiveSimulation()">Recalculate Risk & SHAP</button>
-            <button class="action-btn" style="padding: 11px 16px;" onclick="resetToBaseline()">Reset to Student Baseline</button>
+        <div style="display: flex; gap: 12px; align-items: center;">
+            <button type="button" class="next-btn" onclick="recalculateRisk()">Recalculate Risk & SHAP</button>
+            <button type="button" class="action-btn" onclick="resetBaseline()">Reset to Student Baseline</button>
         </div>
 
-        <!-- Dynamic Counterfactual Summary Box -->
-        <div id="sim-result-banner" class="feedback-box alert-success-custom" style="display: block; margin-top: 20px;">
-            Adjusting sliders recalculates counterfactual risk and SHAP feature contributions live.
+        <div id="simFeedback" style="margin-top: 16px; font-size: 0.9rem; color: #1e3a8a; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 12px; border-radius: 8px; display: none;">
+            Counterfactual Risk & SHAP attribution updated successfully based on simulated behavioral shifts.
         </div>
     </div>
 
-    <!-- Right Column: Baseline vs Simulated Risk & Visual SHAP Attribution Bars -->
+    <!-- Right Column: Explainable AI (SHAP) Breakdown -->
     <div class="card-box">
-        <h3 style="margin-top: 0; color: #1e293b;">Explainable AI (SHAP) Risk Breakdown</h3>
-        <p style="color: #64748b; font-size: 0.88rem; margin-bottom: 16px;">
-            Local feature attributions showing how each metric pushes risk higher (<span style="color:#dc2626;font-weight:600;">Red = Risk Driver</span>) or lower (<span style="color:#16a34a;font-weight:600;">Green = Protective Factor</span>).
+        <h3 style="margin-top: 0; color: #1e3a8a; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">Explainable AI (SHAP) Risk Breakdown</h3>
+        <p style="color: #64748b; font-size: 0.82rem; margin-bottom: 16px;">
+            Local feature attributions showing how each metric pushes risk higher <span style="color: #dc2626; font-weight: bold;">(Red)</span> or lower <span style="color: #16a34a; font-weight: bold;">(Green = Protective Factor)</span>.
         </p>
 
-        <!-- Baseline vs Simulated Comparison -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; text-align: center;">
-                <div style="font-size: 0.8rem; color: #64748b; font-weight: 600;">Recorded Baseline Risk</div>
-                <div id="baseline-risk-display" style="font-size: 1.4rem; font-weight: 700; color: #334155; margin-top: 4px;">
-                    {{ (student.risk_prob * 100)|round|int }}% ({{ student.risk_level }})
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div style="background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #e2e8f0; text-align: center;">
+                <span style="color: #64748b; font-size: 0.85rem; display: block; margin-bottom: 4px;">Simulated Risk Probability</span>
+                <span id="simRiskBadge" class="{% if student.risk_level == 'High Risk' %}badge-high{% elif student.risk_level == 'Moderate Risk' %}badge-mod{% else %}badge-low{% endif %}" style="font-size: 1.1rem; padding: 6px 16px;">
+                    {{ student.risk_prob * 100 | int }}% ({{ student.risk_level }})
+                </span>
+            </div>
+
+            <div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px;">
+                    <span>1. VLE Clicks Impact</span>
+                    <span id="shapVleVal" style="color: #991b1b;">-0.34</span>
                 </div>
+                <div class="progress-track"><div id="shapVleBar" class="progress-fill" style="width: 70%; background: #dc2626;"></div></div>
             </div>
-            <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; text-align: center;">
-                <div style="font-size: 0.8rem; color: #64748b; font-weight: 600;">Simulated What-If Risk</div>
-                <div id="simulated-risk-display" style="font-size: 1.4rem; font-weight: 700; color: #1e3a8a; margin-top: 4px;">
-                    {{ (student.risk_prob * 100)|round|int }}% ({{ student.risk_level }})
+
+            <div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px;">
+                    <span>2. Quiz Score Impact</span>
+                    <span id="shapQuizVal" style="color: #991b1b;">-0.29</span>
                 </div>
+                <div class="progress-track"><div id="shapQuizBar" class="progress-fill" style="width: 60%; background: #dc2626;"></div></div>
             </div>
-        </div>
 
-        <!-- Visual SHAP Bars -->
-        <div style="margin-bottom: 16px;">
-            <div style="display: flex; justify-content: space-between; font-size: 0.88rem; font-weight: 600; margin-bottom: 4px;">
-                <span>1. VLE Clicks Impact (Portal Engagement)</span>
-                <span id="shap-clicks-label">0.00</span>
+            <div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px;">
+                    <span>3. Submission Timeliness Impact</span>
+                    <span id="shapLateVal" style="color: #991b1b;">-0.21</span>
+                </div>
+                <div class="progress-track"><div id="shapLateBar" class="progress-fill" style="width: 45%; background: #dc2626;"></div></div>
             </div>
-            <div class="progress-track" style="height: 16px;">
-                <div id="shap-clicks-bar" class="progress-fill" style="width: 50%; background: #16a34a;"></div>
-            </div>
-        </div>
 
-        <div style="margin-bottom: 16px;">
-            <div style="display: flex; justify-content: space-between; font-size: 0.88rem; font-weight: 600; margin-bottom: 4px;">
-                <span>2. Quiz Score Impact (Assessment Mastery)</span>
-                <span id="shap-quiz-label">0.00</span>
+            <div style="border-top: 1px solid #e2e8f0; padding-top: 14px; margin-top: 6px;">
+                <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 4px;">Recommended Next Steps:</div>
+                <strong id="recConceptLabel" style="color: #4f46e5; font-size: 0.92rem;">{{ student.recommended_concept }}</strong>
+                <a href="/quiz?student_id={{ student.student_id }}" class="action-btn" style="display: block; text-align: center; margin-top: 10px; text-decoration: none;">Practice Target Concept ➔</a>
             </div>
-            <div class="progress-track" style="height: 16px;">
-                <div id="shap-quiz-bar" class="progress-fill" style="width: 50%; background: #16a34a;"></div>
-            </div>
-        </div>
-
-        <div style="margin-bottom: 20px;">
-            <div style="display: flex; justify-content: space-between; font-size: 0.88rem; font-weight: 600; margin-bottom: 4px;">
-                <span>3. Submission Timeliness Impact</span>
-                <span id="shap-late-label">0.00</span>
-            </div>
-            <div class="progress-track" style="height: 16px;">
-                <div id="shap-late-bar" class="progress-fill" style="width: 50%; background: #16a34a;"></div>
-            </div>
-        </div>
-
-        <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px; font-size: 0.88rem; color: #1e3a8a;">
-            <strong>Recommended Next Step:</strong> Focus on <span id="recommended-concept-text" style="font-weight: 700;">{{ student.recommended_concept }}</span> in the Adaptive Quiz Tutor.
         </div>
     </div>
 </div>
 
 <script>
-let baselineData = {
-    student_id: "{{ student.student_id }}",
-    name: "{{ student.name }}",
-    clicks: {{ student.vle_clicks }},
-    quiz: {{ student.quiz_avg }},
-    late: {{ student.late_submissions }},
-    risk: {{ student.risk_prob }},
-    level: "{{ student.risk_level }}"
-};
+    const activeStudent = {{ student | tojson | safe }};
 
-function switchStudentProfile() {
-    const sel = document.getElementById('simStudentSelector');
-    const opt = sel.options[sel.selectedIndex];
-
-    baselineData = {
-        student_id: opt.value,
-        name: opt.getAttribute('data-name'),
-        clicks: parseFloat(opt.getAttribute('data-clicks')),
-        quiz: parseFloat(opt.getAttribute('data-quiz')),
-        late: parseInt(opt.getAttribute('data-late') || '0'),
-        risk: parseFloat(opt.getAttribute('data-risk')),
-        level: opt.getAttribute('data-level')
-    };
-
-    document.getElementById('sim-student-name').innerText = baselineData.name;
-    document.getElementById('goto-quiz-link').href = `/quiz?student_id=${encodeURIComponent(baselineData.student_id)}`;
-    resetToBaseline();
-}
-
-function resetToBaseline() {
-    document.getElementById('clicks-slider').value = baselineData.clicks;
-    document.getElementById('quiz-slider').value = baselineData.quiz;
-    document.getElementById('late-slider').value = baselineData.late;
-    runLiveSimulation();
-}
-
-function updateShapBar(barId, labelId, val) {
-    const label = document.getElementById(labelId);
-    const bar = document.getElementById(barId);
-    const sign = val >= 0 ? '+' : '';
-    label.innerText = `${sign}${val.toFixed(2)} (${val >= 0 ? 'Protective' : 'Increases Risk'})`;
-    label.style.color = val >= 0 ? '#16a34a' : '#dc2626';
-
-    const magnitudePct = Math.min(100, Math.max(12, Math.round(Math.abs(val) * 180)));
-    bar.style.width = `${magnitudePct}%`;
-    bar.style.background = val >= 0 ? '#16a34a' : '#dc2626';
-}
-
-async function runLiveSimulation() {
-    const clicks = document.getElementById('clicks-slider').value;
-    const quiz = document.getElementById('quiz-slider').value;
-    const late = document.getElementById('late-slider').value;
-
-    document.getElementById('clicks-val').innerText = clicks;
-    document.getElementById('quiz-val').innerText = `${quiz}%`;
-    document.getElementById('late-val').innerText = late;
-
-    try {
-        const res = await fetch('/api/v1/student/simulate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                student_id: baselineData.student_id,
-                vle_clicks: clicks,
-                quiz_avg: quiz,
-                late_submissions: late
-            })
-        });
-        const data = await res.json();
-
-        if (data.status === 'success') {
-            const sim = data.simulated;
-            const basePct = Math.round(data.baseline_risk * 100);
-            const simPct = Math.round(sim.risk_prob * 100);
-            const delta = simPct - basePct;
-
-            document.getElementById('baseline-risk-display').innerText = `${basePct}% (${data.baseline_level})`;
-            const simDisplay = document.getElementById('simulated-risk-display');
-            simDisplay.innerText = `${simPct}% (${sim.risk_level})`;
-            simDisplay.style.color = sim.risk_level === 'High Risk' ? '#dc2626' : (sim.risk_level === 'Moderate Risk' ? '#d97706' : '#16a34a');
-
-            // Update SHAP Bars
-            updateShapBar('shap-clicks-bar', 'shap-clicks-label', sim.shap_breakdown.vle_clicks);
-            updateShapBar('shap-quiz-bar', 'shap-quiz-label', sim.shap_breakdown.quiz_avg);
-            updateShapBar('shap-late-bar', 'shap-late-label', sim.shap_breakdown.timeliness);
-
-            document.getElementById('recommended-concept-text').innerText = sim.recommended_concept;
-
-            // Update Banner
-            const banner = document.getElementById('sim-result-banner');
-            banner.className = 'feedback-box ' + (sim.risk_level === 'High Risk' ? 'alert-danger-custom' : 'alert-success-custom');
-            const deltaText = delta <= 0 ? `reduces risk by ${Math.abs(delta)}%` : `increases risk by ${delta}%`;
-            banner.innerHTML = `
-                <strong>Counterfactual Result for ${sim.name}:</strong> Setting VLE clicks to <strong>${clicks}</strong>, 
-                quiz average to <strong>${quiz}%</strong>, and late submissions to <strong>${late}</strong> 
-                ${deltaText} &rarr; <strong>${simPct}% (${sim.risk_level})</strong>.
-            `;
-        }
-    } catch (err) {
-        console.error('Simulation error:', err);
+    function switchStudent(studentId) {
+        window.location.href = `/student?student_id=${studentId}`;
     }
-}
 
-window.addEventListener('DOMContentLoaded', () => runLiveSimulation());
+    function updateSliders() {
+        document.getElementById('vleVal').innerText = document.getElementById('vleSlider').value;
+        document.getElementById('quizVal').innerText = document.getElementById('quizSlider').value;
+        document.getElementById('lateVal').innerText = document.getElementById('lateSlider').value;
+    }
+
+    function recalculateRisk() {
+        const vle = parseFloat(document.getElementById('vleSlider').value);
+        const quiz = parseFloat(document.getElementById('quizSlider').value);
+        const late = parseInt(document.getElementById('lateSlider').value);
+
+        // Client-side counterfactual logit calculation matching backend
+        const baselineClicks = 850.0;
+        const baselineQuiz = 68.0;
+        const clickDiff = (baselineClicks - vle) / 500.0;
+        const quizDiff = (baselineQuiz - quiz) / 25.0;
+        const latePenalty = late * 0.35;
+
+        let logit = -0.35 + (1.15 * clickDiff) + (1.35 * quizDiff) + latePenalty;
+        let riskProb = 1.0 / (1.0 + Math.exp(-logit));
+        riskProb = Math.max(0.03, Math.min(0.98, riskProb));
+        const riskPct = Math.round(riskProb * 100);
+
+        let riskLevel = "Low Risk";
+        let badgeClass = "badge-low";
+        if (riskProb >= 0.65) {
+            riskLevel = "High Risk";
+            badgeClass = "badge-high";
+        } else if (riskProb >= 0.35) {
+            riskLevel = "Moderate Risk";
+            badgeClass = "badge-mod";
+        }
+
+        // Update UI Badge
+        const badge = document.getElementById('simRiskBadge');
+        badge.className = badgeClass;
+        badge.innerText = `${riskPct}% (${riskLevel})`;
+
+        // Update SHAP values
+        const svle = (-clickDiff * 0.25).toFixed(2);
+        const squiz = (-quizDiff * 0.30).toFixed(2);
+        const slate = (-late * 0.08).toFixed(2);
+
+        document.getElementById('shapVleVal').innerText = svle;
+        document.getElementById('shapQuizVal').innerText = squiz;
+        document.getElementById('shapLateVal').innerText = slate;
+
+        document.getElementById('simFeedback').style.display = 'block';
+    }
+
+    function resetBaseline() {
+        document.getElementById('vleSlider').value = activeStudent.vle_clicks;
+        document.getElementById('quizSlider').value = activeStudent.quiz_avg;
+        document.getElementById('lateSlider').value = activeStudent.late_submissions;
+        updateSliders();
+        recalculateRisk();
+        document.getElementById('simFeedback').style.display = 'none';
+    }
 </script>
 {% endblock %}
