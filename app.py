@@ -271,6 +271,38 @@ def trigger_intervention():
         "message": f"Adaptive BKT remediation module ('{concept}') assigned to {student_id}."
     }), 200
 
+@app.route('/api/v1/student/simulate', methods=['POST'])
+def simulate_student_counterfactual():
+    try:
+        data = request.get_json()
+        student_id = data.get('student_id', 'Custom')
+        vle_clicks = float(data.get('vle_clicks', 500))
+        quiz_avg = float(data.get('quiz_avg', 70))
+        late_submissions = int(data.get('late_submissions', 0))
+
+        # Find student's baseline if they exist in LIVE_COHORT
+        baseline_student = next((s for s in LIVE_COHORT if s["student_id"] == student_id), LIVE_COHORT[0])
+
+        # Run model & SHAP evaluation on the simulated counterfactual inputs
+        simulated = evaluate_student_profile(
+            student_id=baseline_student["student_id"],
+            name=baseline_student["name"],
+            module=baseline_student["module"],
+            vle_clicks=vle_clicks,
+            quiz_avg=quiz_avg,
+            late_submissions=late_submissions,
+            weak_concept="AUTO"
+        )
+
+        return jsonify({
+            "status": "success",
+            "baseline_risk": baseline_student["risk_prob"],
+            "baseline_level": baseline_student["risk_level"],
+            "simulated": simulated
+        }), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
+
 
 if __name__ == '__main__':
     app.run(debug=True)
