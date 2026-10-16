@@ -11,7 +11,7 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="feedback-box alert-danger-custom" style="display: block; margin-bottom: 16px;">
+                    <div class="feedback-box {% if category == 'success' %}alert-success-custom{% else %}alert-danger-custom{% endif %}" style="display: block; margin-bottom: 16px;">
                         {{ message }}
                     </div>
                 {% endfor %}
@@ -37,7 +37,11 @@
             <button type="submit" class="next-btn" style="width: 100%; margin-top: 8px; padding: 12px;">Sign In to Panel</button>
         </form>
         
-        <div style="margin-top: 20px; text-align: center; font-size: 0.85rem; color: #64748b;">
+        <div style="margin-top: 20px; text-align: center; font-size: 0.9rem; color: #64748b;">
+            Don't have an account? <a href="/register" style="color: #4f46e5; font-weight: 600; text-decoration: none;">Register here</a>
+        </div>
+
+        <div style="margin-top: 15px; text-align: center; font-size: 0.85rem; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 15px;">
             Default Educator: <strong>educator1</strong> / <strong>password123</strong><br>
             Default Student: <strong>student1</strong> / <strong>password123</strong>
         </div>

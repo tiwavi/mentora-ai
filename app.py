@@ -310,6 +310,32 @@ def tutor_chat():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 400
 
+@app.route('/register', methods=['GET', 'POST'])
+def register_page():
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '').strip()
+        role = request.form.get('role', 'student')
+        student_id_ref = request.form.get('student_id_ref', '').strip() or None
+
+        if not username or not password:
+            flash('Username and password are required.', 'danger')
+            return redirect(url_for('register_page'))
+
+        existing_user = User.query.filter_by(username=username).first()
+        if existing_user:
+            flash('Username already exists. Please choose another or log in.', 'danger')
+            return redirect(url_for('register_page'))
+
+        hashed_pwd = generate_password_hash(password)
+        new_user = User(username=username, password_hash=hashed_pwd, role=role, student_id_ref=student_id_ref)
+        db.session.add(new_user)
+        db.session.commit()
+
+        flash('Registration successful! Please log in with your new credentials.', 'success')
+        return redirect(url_for('login_page'))
+
+    return render_template('register.html')
 
 if __name__ == '__main__':
     init_db()
