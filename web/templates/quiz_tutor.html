@@ -2,103 +2,178 @@
 
 {% block content %}
 <div class="quiz-container">
-    <div class="quiz-header">
-        <h2>Adaptive Diagnostic Quiz & Grounded PDF Tutor</h2>
-        <p style="color: #64748b;">Test your knowledge across course concepts and review verified PDF excerpts.</p>
+    <!-- Top Student & Concept Selector Bar -->
+    <div class="card-box" style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; border-left: 5px solid #1e3a8a;">
+        <div>
+            <h2 style="margin: 0; color: #1e3a8a;">Student-Targeted Adaptive Quiz & Grounded PDF Tutor</h2>
+            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 0.92rem;">
+                Questions dynamically prioritize the selected student's diagnosed concept gap and update their BKT mastery state.
+            </p>
+        </div>
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <div>
+                <label style="font-size: 0.8rem; font-weight: 600; color: #475569; display: block;">Active Student Profile:</label>
+                <select id="studentSelector" class="filter-select" onchange="loadStudentQuiz()">
+                    {% for s in students %}
+                    <option value="{{ s.student_id }}" {% if s.student_id == student.student_id %}selected{% endif %}>
+                        {{ s.name }} ({{ s.student_id }}) — {{ s.risk_level }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label style="font-size: 0.8rem; font-weight: 600; color: #475569; display: block;">Focus Concept:</label>
+                <select id="conceptSelector" class="filter-select" onchange="loadStudentQuiz(true)">
+                    <option value="">Student's Diagnosed Gap (Auto)</option>
+                    {% for c in concepts %}
+                    <option value="{{ c }}">{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
     </div>
 
     <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 25px;">
         <!-- Left Column: Interactive Quiz Card -->
         <div class="card-box">
-            <h4 id="q-number" style="color: #334155; font-size: 1.1rem; margin-bottom: 8px;">Question 1 (Concept: Database Normalization & BKT):</h4>
-            <p id="q-text" style="font-weight: 600; color: #0f172a; font-size: 1.05rem; margin-bottom: 20px;">
-                Which normal form eliminates transitive functional dependencies in a relational schema?
-            </p>
-
-            <div id="options-container">
-                <button class="option-btn" onclick="submitAnswer(false)">A) First Normal Form (1NF)</button>
-                <button class="option-btn" onclick="submitAnswer(false)">B) Second Normal Form (2NF)</button>
-                <button class="option-btn" onclick="submitAnswer(true)">C) Third Normal Form (3NF)</button>
-                <button class="option-btn" onclick="submitAnswer(false)">D) Unnormalized Form (UNF)</button>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <span id="q-concept-badge" class="badge-mod" style="font-size: 0.85rem;">Loading Concept...</span>
+                <span id="q-counter" style="font-size: 0.88rem; color: #64748b; font-weight: 600;">Question 1 of 12</span>
             </div>
+
+            <h4 id="q-number" style="color: #334155; font-size: 1.05rem; margin-bottom: 8px;">Loading Question...</h4>
+            <p id="q-text" style="font-weight: 600; color: #0f172a; font-size: 1.08rem; margin-bottom: 20px;"></p>
+
+            <div id="options-container"></div>
 
             <div id="quiz-feedback" class="feedback-box"></div>
-            <button class="next-btn" id="next-q-btn" onclick="nextQuestion()">Next Adaptive Question &rarr;</button>
+            <div id="pdf-excerpt-box" class="feedback-box" style="background: #f8fafc; border-left: 4px solid #1e3a8a; color: #334155; font-weight: 400;"></div>
+
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="next-btn" id="next-q-btn" onclick="nextQuestion()">Next Adaptive Question &rarr;</button>
+            </div>
         </div>
 
-        <!-- Right Column: Syllabus Concepts BKT Tracker Card -->
+        <!-- Right Column: Student Analysis & BKT Tracker Card -->
         <div class="card-box">
-            <h4 style="color: #1e3a8a; font-size: 1.1rem; margin-bottom: 15px;">Syllabus Concepts (BKT)</h4>
+            <h4 style="color: #1e3a8a; font-size: 1.1rem; margin-top: 0; margin-bottom: 12px;">Student Diagnostic Summary</h4>
+            
+            <div class="concept-row">
+                <span>Student Name:</span>
+                <strong id="summary-name">{{ student.name }} ({{ student.student_id }})</strong>
+            </div>
+            <div class="concept-row">
+                <span>Predicted Risk:</span>
+                <strong id="summary-risk" style="color: #dc2626;">{{ (student.risk_prob * 100)|round|int }}% ({{ student.risk_level }})</strong>
+            </div>
+            <div class="concept-row">
+                <span>Diagnosed Gap:</span>
+                <strong id="summary-gap" style="color: #1e3a8a;">{{ student.recommended_concept }}</strong>
+            </div>
+            <div class="concept-row" style="border-bottom: none;">
+                <span>SHAP Driver:</span>
+                <span id="summary-shap" style="font-size: 0.85rem; color: #475569; text-align: right;">{{ student.shap_driver }}</span>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 16px 0;">
+
             <div style="margin-bottom: 20px;">
                 <div style="display: flex; justify-content: space-between; font-weight: 600; font-size: 0.95rem;">
-                    <span>Current Concept Mastery:</span>
-                    <span id="mastery-label" style="color: #16a34a;">20.0% (In Progress)</span>
+                    <span>Live BKT Concept Mastery:</span>
+                    <span id="mastery-label" style="color: #16a34a;">{{ (student.bkt_mastery * 100)|round|int }}%</span>
                 </div>
                 <div class="progress-track">
-                    <div id="mastery-bar" class="progress-fill" style="width: 20%;">20%</div>
+                    <div id="mastery-bar" class="progress-fill" style="width: {{ (student.bkt_mastery * 100)|round|int }}%;">
+                        {{ (student.bkt_mastery * 100)|round|int }}%
+                    </div>
                 </div>
             </div>
 
-            <h5 style="font-size: 0.95rem; color: #334155; margin-bottom: 10px; font-weight: 600;">Tracked Status Concepts</h5>
+            <h5 style="font-size: 0.92rem; color: #334155; margin-bottom: 8px; font-weight: 600;">Session Performance</h5>
             <div class="concept-row">
-                <span>1. Relational Algebra & Keys</span>
-                <span id="c1-status" style="font-weight: 600; color: #ca8a04;">P(L) = 0.20</span>
+                <span>Questions Answered:</span>
+                <strong id="stat-answered">0</strong>
             </div>
             <div class="concept-row">
-                <span>2. Functional Dependencies (3NF/BCNF)</span>
-                <span style="font-weight: 600; color: #16a34a;">Active Target</span>
-            </div>
-            <div class="concept-row">
-                <span>3. Transaction ACID Properties</span>
-                <span style="font-weight: 600; color: #64748b;">Pending</span>
+                <span>Correct Responses:</span>
+                <strong id="stat-correct" style="color: #16a34a;">0</strong>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-let currentMastery = 0.20;
+let activeStudentId = "{{ student.student_id }}";
+let currentMastery = {{ student.bkt_mastery }};
+let questions = [];
 let currentQIndex = 0;
+let answeredCount = 0;
+let correctCount = 0;
 
-const questions = [
-    {
-        number: "Question 1 (Concept: Database Normalization & BKT):",
-        text: "Which normal form eliminates transitive functional dependencies in a relational schema?",
-        options: [
-            { text: "A) First Normal Form (1NF)", correct: false },
-            { text: "B) Second Normal Form (2NF)", correct: false },
-            { text: "C) Third Normal Form (3NF)", correct: true },
-            { text: "D) Unnormalized Form (UNF)", correct: false }
-        ]
-    },
-    {
-        number: "Question 2 (Concept: Bayesian Knowledge Tracing):",
-        text: "In Bayesian Knowledge Tracing (BKT), what does the parameter P(T) model?",
-        options: [
-            { text: "A) Probability of guessing a correct response", correct: false },
-            { text: "B) Probability of transition from unlearned to learned state", correct: true },
-            { text: "C) Probability of slipping on a mastered skill", correct: false },
-            { text: "D) Static VLE click threshold", correct: false }
-        ]
-    },
-    {
-        number: "Question 3 (Concept: Explainable AI & SHAP):",
-        text: "How does the Educator Dashboard use SHAP values for student risk assessment?",
-        options: [
-            { text: "A) Provide feature attributions explaining why students are flagged high risk", correct: true },
-            { text: "B) Compile Flask application routes", correct: false },
-            { text: "C) Render background CSS stylesheets", correct: false },
-            { text: "D) Reset OULAD cutoff datasets", correct: false }
-        ]
+async function loadStudentQuiz(manualConcept = false) {
+    activeStudentId = document.getElementById('studentSelector').value;
+    const conceptOverride = manualConcept ? document.getElementById('conceptSelector').value : '';
+
+    const url = `/api/v1/quiz/questions?student_id=${encodeURIComponent(activeStudentId)}&concept=${encodeURIComponent(conceptOverride)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (data.status === 'success') {
+        const s = data.student;
+        currentMastery = s.bkt_mastery;
+        questions = data.questions;
+        currentQIndex = 0;
+
+        // Update right-hand student diagnostic card
+        document.getElementById('summary-name').innerText = `${s.name} (${s.student_id})`;
+        document.getElementById('summary-risk').innerText = `${Math.round(s.risk_prob * 100)}% (${s.risk_level})`;
+        document.getElementById('summary-gap').innerText = data.target_concept;
+        document.getElementById('summary-shap').innerText = s.shap_driver;
+
+        updateMasteryUI(currentMastery, currentMastery >= 0.8 ? 'Mastered' : 'In Progress');
+        renderCurrentQuestion();
     }
-];
+}
 
-async function submitAnswer(isCorrect) {
+function updateMasteryUI(mastery, statusText) {
+    const pct = Math.round(mastery * 100);
+    document.getElementById('mastery-label').innerText = `${pct}% (${statusText})`;
+    const bar = document.getElementById('mastery-bar');
+    bar.style.width = `${pct}%`;
+    bar.innerText = `${pct}%`;
+}
+
+function renderCurrentQuestion() {
+    if (!questions.length) return;
+    const q = questions[currentQIndex];
+
+    document.getElementById('q-concept-badge').innerText = `Target Concept: ${q.concept}`;
+    document.getElementById('q-counter').innerText = `Question ${currentQIndex + 1} of ${questions.length}`;
+    document.getElementById('q-number').innerText = `Item ID: ${q.id}`;
+    document.getElementById('q-text').innerText = q.question;
+
+    const container = document.getElementById('options-container');
+    container.innerHTML = '';
+    q.options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.innerText = opt.text;
+        btn.onclick = () => submitAnswer(opt.correct, q.excerpt);
+        container.appendChild(btn);
+    });
+
+    document.getElementById('quiz-feedback').style.display = 'none';
+    document.getElementById('pdf-excerpt-box').style.display = 'none';
+    document.getElementById('next-q-btn').style.display = 'none';
+}
+
+async function submitAnswer(isCorrect, excerpt) {
     try {
         const response = await fetch('/api/v1/quiz/submit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                student_id: activeStudentId,
                 current_mastery: currentMastery,
                 correct: isCorrect
             })
@@ -110,18 +185,23 @@ async function submitAnswer(isCorrect) {
             currentMastery = data.updated_mastery;
             const newPct = Math.round(currentMastery * 100);
 
-            document.getElementById('mastery-label').innerText = `${newPct}% (${data.concept_status})`;
-            const bar = document.getElementById('mastery-bar');
-            bar.style.width = `${newPct}%`;
-            bar.innerText = `${newPct}%`;
-            document.getElementById('c1-status').innerText = `P(L) = ${currentMastery.toFixed(2)}`;
+            answeredCount++;
+            if (isCorrect) correctCount++;
+            document.getElementById('stat-answered').innerText = answeredCount;
+            document.getElementById('stat-correct').innerText = correctCount;
+
+            updateMasteryUI(currentMastery, data.concept_status);
 
             const fb = document.getElementById('quiz-feedback');
             fb.style.display = 'block';
             fb.className = 'feedback-box ' + (isCorrect ? 'alert-success-custom' : 'alert-danger-custom');
             fb.innerText = isCorrect
-                ? `Correct! BKT updated mastery from ${prevPct}% to ${newPct}% (${data.concept_status}).`
-                : `Incorrect. BKT adjusted mastery to ${newPct}% (${data.concept_status}). Keep practicing!`;
+                ? `Correct! BKT updated ${activeStudentId}'s mastery from ${prevPct}% to ${newPct}% (${data.concept_status}).`
+                : `Incorrect. BKT recalibrated ${activeStudentId}'s mastery from ${prevPct}% to ${newPct}% (${data.concept_status}).`;
+
+            const pdfBox = document.getElementById('pdf-excerpt-box');
+            pdfBox.style.display = 'block';
+            pdfBox.innerHTML = `<strong>Grounded PDF Verification:</strong> ${excerpt}`;
 
             document.getElementById('next-q-btn').style.display = 'inline-block';
         }
@@ -132,22 +212,10 @@ async function submitAnswer(isCorrect) {
 
 function nextQuestion() {
     currentQIndex = (currentQIndex + 1) % questions.length;
-    const q = questions[currentQIndex];
-    document.getElementById('q-number').innerText = q.number;
-    document.getElementById('q-text').innerText = q.text;
-
-    const container = document.getElementById('options-container');
-    container.innerHTML = '';
-    q.options.forEach(opt => {
-        const btn = document.createElement('button');
-        btn.className = 'option-btn';
-        btn.innerText = opt.text;
-        btn.onclick = () => submitAnswer(opt.correct);
-        container.appendChild(btn);
-    });
-
-    document.getElementById('quiz-feedback').style.display = 'none';
-    document.getElementById('next-q-btn').style.display = 'none';
+    renderCurrentQuestion();
 }
+
+// Initialize quiz on page load
+window.addEventListener('DOMContentLoaded', () => loadStudentQuiz(false));
 </script>
 {% endblock %}
