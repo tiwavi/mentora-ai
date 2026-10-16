@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="max-width: 450px; margin: 60px auto;">
+    <div class="card-box" style="border-top: 5px solid #4f46e5;">
+        <h2 style="margin-top: 0; color: #1e3a8a; text-align: center;">Mentora AI Portal</h2>
+        <p style="color: #64748b; text-align: center; font-size: 0.92rem; margin-bottom: 24px;">
+            Sign in to access your role-based educator or student analytics panel.
+        </p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="feedback-box alert-danger-custom" style="display: block; margin-bottom: 16px;">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="/login" style="display: flex; flex-direction: column; gap: 16px;">
+            <div>
+                <label style="font-size: 0.85rem; font-weight: 600; color: #334155;">Username</label>
+                <input type="text" name="username" class="search-input" style="width: 100%; box-sizing: border-box;" placeholder="e.g., educator1 or student1" required>
+            </div>
+            <div>
+                <label style="font-size: 0.85rem; font-weight: 600; color: #334155;">Password</label>
+                <input type="password" name="password" class="search-input" style="width: 100%; box-sizing: border-box;" placeholder="Enter password" required>
+            </div>
+            <div>
+                <label style="font-size: 0.85rem; font-weight: 600; color: #334155;">Select Panel Role</label>
+                <select name="role" class="filter-select" style="width: 100%; box-sizing: border-box;">
+                    <option value="educator">Educator Panel (Full Cohort & CSV Upload)</option>
+                    <option value="student">Student Panel (Personal Risk & BKT Quiz)</option>
+                </select>
+            </div>
+            <button type="submit" class="next-btn" style="width: 100%; margin-top: 8px; padding: 12px;">Sign In to Panel</button>
+        </form>
+        
+        <div style="margin-top: 20px; text-align: center; font-size: 0.85rem; color: #64748b;">
+            Default Educator: <strong>educator1</strong> / <strong>password123</strong><br>
+            Default Student: <strong>student1</strong> / <strong>password123</strong>
+        </div>
+    </div>
+</div>
+{% endblock %}
