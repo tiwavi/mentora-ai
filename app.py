@@ -3,11 +3,17 @@ import json
 import math
 from flask import Flask, render_template, request, jsonify
 from src.adaptive.bkt_engine import BKTEngine, QUESTION_BANK, get_questions_for_concept
+from src.models.explainability import generate_student_explanation
+
+# Setup Absolute Paths & Flask App
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+TEMPLATE_DIR = os.path.join(BASE_DIR, "web", "templates")
+STATIC_DIR = os.path.join(BASE_DIR, "web", "static")
 
 app = Flask(
     __name__,
-    template_folder='web/templates',
-    static_folder='web/static'
+    template_folder=TEMPLATE_DIR,
+    static_folder=STATIC_DIR
 )
 
 # Initialize BKT Engine
@@ -144,7 +150,7 @@ def evaluate_student_profile(student_id, name, module, vle_clicks, quiz_avg, lat
 
 
 def load_model_metrics():
-    metrics_path = os.path.join('data', 'processed', 'model_metrics.json')
+    metrics_path = os.path.join(BASE_DIR, 'data', 'processed', 'model_metrics.json')
     if os.path.exists(metrics_path):
         with open(metrics_path, 'r') as f:
             return json.load(f)
@@ -155,45 +161,9 @@ def load_model_metrics():
     }
 
 
+# ==================== VIEW ROUTES ====================
+
 @app.route('/')
-from src.models.explainability import generate_student_explanation
-from src.adaptive.bkt_engine import BKTEngine
-
-# Correctly resolve absolute paths for templates and static folders
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-TEMPLATE_DIR = os.path.join(BASE_DIR, "web", "templates")
-STATIC_DIR = os.path.join(BASE_DIR, "web", "static")
-
-app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)
-
-# Global variables to cache data and metrics
-DATA_PATH = os.path.join(BASE_DIR, "cleaned_ou_data.csv")
-METRICS_PATH = os.path.join(BASE_DIR, "data", "processed", "model_metrics.json")
-CONCEPT_MAP_PATH = os.path.join(BASE_DIR, "data", "content", "concept_map.json")
-QUESTION_BANK_PATH = os.path.join(BASE_DIR, "data", "content", "question_bank.json")
-
-def load_app_data():
-    """Loads processed data, metrics, and JSON content schemas safely."""
-    df = pd.read_csv(DATA_PATH) if os.path.exists(DATA_PATH) else None
-    
-    metrics = {}
-    if os.path.exists(METRICS_PATH):
-        with open(METRICS_PATH, 'r') as f:
-            metrics = json.load(f)
-            
-    concept_map = {}
-    if os.path.exists(CONCEPT_MAP_PATH):
-        with open(CONCEPT_MAP_PATH, 'r') as f:
-            concept_map = json.load(f)
-            
-    question_bank = {}
-    if os.path.exists(QUESTION_BANK_PATH):
-        with open(QUESTION_BANK_PATH, 'r') as f:
-            question_bank = json.load(f)
-            
-    return df, metrics, concept_map, question_bank
-
-@app.route("/")
 def educator_dashboard():
     metrics = load_model_metrics()
     return render_template(
@@ -223,6 +193,8 @@ def quiz_page():
     )
 
 
+# ==================== API ENDPOINTS ====================
+
 @app.route('/api/v1/students/evaluate', methods=['POST'])
 def add_and_evaluate_student():
     try:
@@ -239,7 +211,6 @@ def add_and_evaluate_student():
             student_id, name, module, vle_clicks, quiz_avg, late_submissions, weak_concept
         )
 
-        # Update if student_id exists, otherwise prepend to cohort
         existing_idx = next((i for i, s in enumerate(LIVE_COHORT) if s["student_id"] == student_id), None)
         if existing_idx is not None:
             LIVE_COHORT[existing_idx] = evaluated
@@ -283,7 +254,6 @@ def submit_quiz_answer():
         updated_mastery = bkt_engine.update_mastery(current_mastery, correct)
         status = "Mastered" if updated_mastery >= 0.8 else "In Progress"
 
-        # Update student's mastery in LIVE_COHORT if matched
         student = next((s for s in LIVE_COHORT if s["student_id"] == student_id), None)
         if student:
             student["bkt_mastery"] = updated_mastery
@@ -309,6 +279,7 @@ def trigger_intervention():
         "message": f"Adaptive BKT remediation module ('{concept}') assigned to {student_id}."
     }), 200
 
+
 @app.route('/api/v1/student/simulate', methods=['POST'])
 def simulate_student_counterfactual():
     try:
@@ -318,10 +289,8 @@ def simulate_student_counterfactual():
         quiz_avg = float(data.get('quiz_avg', 70))
         late_submissions = int(data.get('late_submissions', 0))
 
-        # Find student's baseline if they exist in LIVE_COHORT
         baseline_student = next((s for s in LIVE_COHORT if s["student_id"] == student_id), LIVE_COHORT[0])
 
-        # Run model & SHAP evaluation on the simulated counterfactual inputs
         simulated = evaluate_student_profile(
             student_id=baseline_student["student_id"],
             name=baseline_student["name"],
@@ -341,13 +310,13 @@ def simulate_student_counterfactual():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 400
 
+
 @app.route('/api/v1/tutor/chat', methods=['POST'])
 def tutor_chat():
     try:
         data = request.get_json()
         query = data.get('query', '').lower().strip()
 
-        # Grounded knowledge base mapping course queries to verified PDF excerpts
         if '3nf' in query or 'bcnf' in query or 'normal' in query:
             answer = "Third Normal Form (3NF) eliminates transitive functional dependencies (X -> Y -> Z). Boyce-Codd Normal Form (BCNF) is stricter, requiring that for every non-trivial functional dependency X -> Y, X must be a superkey."
             citation = "Course PDF: Database Normalization (Unit 2, pp. 14–19)"
@@ -374,43 +343,8 @@ def tutor_chat():
         return jsonify({"status": "error", "message": str(e)}), 400
 
 
+# ==================== SERVER RUN ====================
+
 if __name__ == '__main__':
-    app.run(debug=True)
-
-# Initialize the BKT engine instance for quiz concept tracking
-bkt_engine = BKTEngine(p_init=0.2, p_transit=0.1, p_slip=0.1, p_guess=0.2)
-
-@app.route('/api/v1/quiz/submit', methods=['POST'])
-def submit_quiz_answer():
-    """
-    API endpoint for adaptive quiz submissions.
-    Expects JSON payload: { "current_mastery": 0.35, "correct": true }
-    Returns the updated BKT mastery probability.
-    """
-    try:
-        data = request.get_json()
-        current_mastery = float(data.get('current_mastery', 0.2))
-        correct = bool(data.get('correct', False))
-        
-        # Calculate updated mastery probability using Aryan's BKT engine
-        updated_mastery = bkt_engine.update_mastery(current_mastery, correct)
-        
-        # Determine current mastery tier / status
-        status = "Mastered" if updated_mastery >= 0.8 else "In Progress"
-        
-        return jsonify({
-            "status": "success",
-            "previous_mastery": current_mastery,
-            "correct": correct,
-            "updated_mastery": updated_mastery,
-            "concept_status": status
-        }), 200
-    except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": str(e)
-        }), 400
-
-if __name__ == "__main__":
     print("[INFO] Starting Mentora AI Flask Web Server on http://127.0.0.1:5000")
     app.run(debug=True, port=5000)
