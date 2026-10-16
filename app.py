@@ -1,3 +1,9 @@
+"""
+Module: app.py
+Description: Mentora AI Flask Application with Persistent SQLite Database, 
+             Flask-Login Authentication, BKT Adaptive Learning, and SHAP Explainability.
+"""
+
 import os
 import json
 import math
@@ -63,6 +69,23 @@ def init_db():
             db.session.commit()
 
 
+def serialize_student(record):
+    """Converts a SQLAlchemy StudentRecord object into a plain serializable dictionary."""
+    return {
+        "student_id": record.student_id,
+        "name": record.name,
+        "module": record.module,
+        "vle_clicks": record.vle_clicks,
+        "quiz_avg": record.quiz_avg,
+        "late_submissions": record.late_submissions,
+        "risk_prob": record.risk_prob,
+        "risk_level": record.risk_level,
+        "shap_driver": record.shap_driver,
+        "recommended_concept": record.recommended_concept,
+        "bkt_mastery": record.bkt_mastery
+    }
+
+
 def evaluate_student_profile(student_id, name, module, vle_clicks, quiz_avg, late_submissions, weak_concept=None):
     vle_clicks = float(vle_clicks)
     quiz_avg = float(quiz_avg)
@@ -123,7 +146,7 @@ def evaluate_student_profile(student_id, name, module, vle_clicks, quiz_avg, lat
     }
 
 
-# ==================== AUTH ROUTES ====================
+# ==================== AUTH & REGISTRATION ROUTES ====================
 
 @app.route('/login', methods=['GET', 'POST'])
 def login_page():
@@ -145,6 +168,34 @@ def login_page():
     return render_template('login.html')
 
 
+@app.route('/register', methods=['GET', 'POST'])
+def register_page():
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '').strip()
+        role = request.form.get('role', 'student')
+        student_id_ref = request.form.get('student_id_ref', '').strip() or None
+
+        if not username or not password:
+            flash('Username and password are required.', 'danger')
+            return redirect(url_for('register_page'))
+
+        existing_user = User.query.filter_by(username=username).first()
+        if existing_user:
+            flash('Username already exists. Please choose another or log in.', 'danger')
+            return redirect(url_for('register_page'))
+
+        hashed_pwd = generate_password_hash(password)
+        new_user = User(username=username, password_hash=hashed_pwd, role=role, student_id_ref=student_id_ref)
+        db.session.add(new_user)
+        db.session.commit()
+
+        flash('Registration successful! Please log in with your new credentials.', 'success')
+        return redirect(url_for('login_page'))
+
+    return render_template('register.html')
+
+
 @app.route('/logout')
 @login_required
 def logout():
@@ -161,8 +212,7 @@ def educator_dashboard():
         return redirect(url_for('student_workspace'))
         
     students = StudentRecord.query.all()
-    # Convert SQLAlchemy objects to dicts for templates
-    student_list = [s.__dict__ for s in students]
+    student_list = [serialize_student(s) for s in students]
     return render_template('educator_dashboard.html', students=student_list, concepts=list(QUESTION_BANK.keys()))
 
 
@@ -170,9 +220,9 @@ def educator_dashboard():
 @login_required
 def student_workspace():
     students = StudentRecord.query.all()
-    student_list = [s.__dict__ for s in students]
+    student_list = [serialize_student(s) for s in students]
     
-    if current_user.role == 'student':
+    if current_user.role == 'student' and current_user.student_id_ref:
         selected = next((s for s in student_list if s["student_id"] == current_user.student_id_ref), student_list[0])
     else:
         student_id = request.args.get('student_id')
@@ -185,9 +235,9 @@ def student_workspace():
 @login_required
 def quiz_page():
     students = StudentRecord.query.all()
-    student_list = [s.__dict__ for s in students]
+    student_list = [serialize_student(s) for s in students]
     
-    if current_user.role == 'student':
+    if current_user.role == 'student' and current_user.student_id_ref:
         selected = next((s for s in student_list if s["student_id"] == current_user.student_id_ref), student_list[0])
     else:
         student_id = request.args.get('student_id')
@@ -310,32 +360,6 @@ def tutor_chat():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 400
 
-@app.route('/register', methods=['GET', 'POST'])
-def register_page():
-    if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '').strip()
-        role = request.form.get('role', 'student')
-        student_id_ref = request.form.get('student_id_ref', '').strip() or None
-
-        if not username or not password:
-            flash('Username and password are required.', 'danger')
-            return redirect(url_for('register_page'))
-
-        existing_user = User.query.filter_by(username=username).first()
-        if existing_user:
-            flash('Username already exists. Please choose another or log in.', 'danger')
-            return redirect(url_for('register_page'))
-
-        hashed_pwd = generate_password_hash(password)
-        new_user = User(username=username, password_hash=hashed_pwd, role=role, student_id_ref=student_id_ref)
-        db.session.add(new_user)
-        db.session.commit()
-
-        flash('Registration successful! Please log in with your new credentials.', 'success')
-        return redirect(url_for('login_page'))
-
-    return render_template('register.html')
 
 if __name__ == '__main__':
     init_db()
