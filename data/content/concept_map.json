@@ -1,0 +1,41 @@
+{
+  "course_code": "AAA_ML_FOUNDATIONS",
+  "course_title": "Machine Learning & Learning Analytics Foundations",
+  "concepts": [
+    {
+      "concept_id": "C01",
+      "title": "Relational Data Merging & Imputation",
+      "prerequisite_id": null,
+      "bkt_params": {"p_init": 0.35, "p_transit": 0.18, "p_slip": 0.10, "p_guess": 0.20},
+      "pdf_reference": "Course_Notes_Unit1_Data_Prep.pdf"
+    },
+    {
+      "concept_id": "C02",
+      "title": "Cutoff-Aware Feature Engineering & Leakage Prevention",
+      "prerequisite_id": "C01",
+      "bkt_params": {"p_init": 0.25, "p_transit": 0.15, "p_slip": 0.10, "p_guess": 0.20},
+      "pdf_reference": "Course_Notes_Unit2_Cutoffs.pdf"
+    },
+    {
+      "concept_id": "C03",
+      "title": "Supervised Risk Classifiers (LR, DT, RF)",
+      "prerequisite_id": "C02",
+      "bkt_params": {"p_init": 0.30, "p_transit": 0.20, "p_slip": 0.12, "p_guess": 0.25},
+      "pdf_reference": "Course_Notes_Unit3_Classifiers.pdf"
+    },
+    {
+      "concept_id": "C04",
+      "title": "SHAP & LIME Local/Global Explainability",
+      "prerequisite_id": "C03",
+      "bkt_params": {"p_init": 0.20, "p_transit": 0.12, "p_slip": 0.15, "p_guess": 0.15},
+      "pdf_reference": "Course_Notes_Unit4_XAI.pdf"
+    },
+    {
+      "concept_id": "C05",
+      "title": "Bayesian Knowledge Tracing & Adaptive Policies",
+      "prerequisite_id": "C04",
+      "bkt_params": {"p_init": 0.20, "p_transit": 0.15, "p_slip": 0.10, "p_guess": 0.20},
+      "pdf_reference": "Course_Notes_Unit5_Adaptive.pdf"
+    }
+  ]
+}

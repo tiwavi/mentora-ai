@@ -156,6 +156,44 @@ def load_model_metrics():
 
 
 @app.route('/')
+from src.models.explainability import generate_student_explanation
+from src.adaptive.bkt_engine import BKTEngine
+
+# Correctly resolve absolute paths for templates and static folders
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+TEMPLATE_DIR = os.path.join(BASE_DIR, "web", "templates")
+STATIC_DIR = os.path.join(BASE_DIR, "web", "static")
+
+app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)
+
+# Global variables to cache data and metrics
+DATA_PATH = os.path.join(BASE_DIR, "cleaned_ou_data.csv")
+METRICS_PATH = os.path.join(BASE_DIR, "data", "processed", "model_metrics.json")
+CONCEPT_MAP_PATH = os.path.join(BASE_DIR, "data", "content", "concept_map.json")
+QUESTION_BANK_PATH = os.path.join(BASE_DIR, "data", "content", "question_bank.json")
+
+def load_app_data():
+    """Loads processed data, metrics, and JSON content schemas safely."""
+    df = pd.read_csv(DATA_PATH) if os.path.exists(DATA_PATH) else None
+    
+    metrics = {}
+    if os.path.exists(METRICS_PATH):
+        with open(METRICS_PATH, 'r') as f:
+            metrics = json.load(f)
+            
+    concept_map = {}
+    if os.path.exists(CONCEPT_MAP_PATH):
+        with open(CONCEPT_MAP_PATH, 'r') as f:
+            concept_map = json.load(f)
+            
+    question_bank = {}
+    if os.path.exists(QUESTION_BANK_PATH):
+        with open(QUESTION_BANK_PATH, 'r') as f:
+            question_bank = json.load(f)
+            
+    return df, metrics, concept_map, question_bank
+
+@app.route("/")
 def educator_dashboard():
     metrics = load_model_metrics()
     return render_template(
@@ -304,5 +342,44 @@ def simulate_student_counterfactual():
         return jsonify({"status": "error", "message": str(e)}), 400
 
 
+
 if __name__ == '__main__':
     app.run(debug=True)
+
+# Initialize the BKT engine instance for quiz concept tracking
+bkt_engine = BKTEngine(p_init=0.2, p_transit=0.1, p_slip=0.1, p_guess=0.2)
+
+@app.route('/api/v1/quiz/submit', methods=['POST'])
+def submit_quiz_answer():
+    """
+    API endpoint for adaptive quiz submissions.
+    Expects JSON payload: { "current_mastery": 0.35, "correct": true }
+    Returns the updated BKT mastery probability.
+    """
+    try:
+        data = request.get_json()
+        current_mastery = float(data.get('current_mastery', 0.2))
+        correct = bool(data.get('correct', False))
+        
+        # Calculate updated mastery probability using Aryan's BKT engine
+        updated_mastery = bkt_engine.update_mastery(current_mastery, correct)
+        
+        # Determine current mastery tier / status
+        status = "Mastered" if updated_mastery >= 0.8 else "In Progress"
+        
+        return jsonify({
+            "status": "success",
+            "previous_mastery": current_mastery,
+            "correct": correct,
+            "updated_mastery": updated_mastery,
+            "concept_status": status
+        }), 200
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 400
+
+if __name__ == "__main__":
+    print("[INFO] Starting Mentora AI Flask Web Server on http://127.0.0.1:5000")
+    app.run(debug=True, port=5000)
